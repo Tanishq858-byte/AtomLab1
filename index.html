@@ -1,0 +1,2414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <title>ATOMLAB — Atomic Models & Structure of Atom</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-main: #070A10;
+      --bg-panel: #0B101B;
+      --bg-card: #111827;
+      --accent: #A3E635;
+      --accent-soft: rgba(163, 230, 53, 0.14);
+      --border: rgba(255, 255, 255, 0.08);
+      --text-main: #F8FAFC;
+      --text-muted: #94A3B8;
+      --canvas-bg: #050811;
+    }
+
+    * {
+      box-sizing: border-box;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, 0.22) transparent;
+      user-select: none;
+    }
+    *::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    *::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    *::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.24);
+      border-radius: 999px;
+    }
+    *::-webkit-scrollbar-thumb:hover {
+      background: rgba(163, 230, 53, 0.45);
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      background-color: #070A10;
+      color: #F8FAFC;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      letter-spacing: -0.01em;
+    }
+
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .view-section {
+      display: none;
+      width: 100%;
+      height: 100%;
+    }
+    .view-section.active {
+      display: flex;
+    }
+
+    .graph-grid-bg {
+      background-image:
+        linear-gradient(to right, rgba(56, 189, 248, 0.11) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(56, 189, 248, 0.11) 1px, transparent 1px),
+        linear-gradient(to right, rgba(148, 163, 184, 0.045) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(148, 163, 184, 0.045) 1px, transparent 1px);
+      background-size: 160px 160px, 160px 160px, 32px 32px, 32px 32px;
+    }
+
+    .nav-btn {
+      padding: 0.375rem 0.875rem;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+      color: #94A3B8;
+      background: transparent;
+      cursor: pointer;
+    }
+    .nav-btn:hover {
+      color: #F8FAFC;
+    }
+    .nav-btn.active {
+      background-color: rgba(163, 230, 53, 0.12);
+      border-color: rgba(163, 230, 53, 0.35);
+      color: #D9F99D;
+    }
+
+    input[type="range"] {
+      accent-color: var(--accent);
+    }
+
+    @media (min-width: 1920px) {
+      html { font-size: 18px; }
+    }
+    @media (min-width: 2560px) {
+      html { font-size: 22px; }
+    }
+  
+    /* Touch & Tablet Optimizations */
+    canvas, .canvas-wrap { touch-action: none; -webkit-user-select: none; user-select: none; outline: none; -webkit-tap-highlight-color: transparent; }
+    input[type="range"]::-webkit-slider-thumb {
+      width: 28px; height: 28px; border-radius: 50%; background: var(--accent);
+      -webkit-appearance: none; cursor: pointer; margin-top: -10px;
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 28px; height: 28px; border-radius: 50%; background: var(--accent); cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px;
+    }
+    button, .nav-btn, .ptype-btn, select, .bdiff-btn, .mdiff-btn { 
+      touch-action: manipulation; /* Prevents double-tap zoom */
+      -webkit-tap-highlight-color: transparent;
+    }
+    @media (max-width: 1024px) {
+      .view-section { overflow-x: hidden; }
+      #simStageWrap, #buildCanvasWrap { min-height: 45vh; }
+      #simLeftSidebar, #simRightSidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
+      #simLeftSidebar { flex-direction: row; flex-wrap: wrap; }
+      #simLeftSidebar > div { flex: 1 1 300px; }
+    }
+    @media (max-width: 768px) {
+      #simStageWrap, #buildCanvasWrap { min-height: 40vh; }
+      .text-clamp { font-size: clamp(1.5rem, 4vw, 2.5rem); }
+    }
+</style>
+</head>
+<body class="flex flex-col w-full h-[100dvh] overflow-hidden">
+
+  <!-- TOP NAVIGATION HEADER -->
+  <header class="h-16 flex-shrink-0 px-4 sm:px-8 border-b border-white/[0.06] bg-[#080B11] flex items-center justify-between gap-4 z-50">
+    <button onclick="switchView('overview')" class="flex items-center gap-3 text-left cursor-pointer group">
+      <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition group-hover:scale-105 bg-[#A3E635]/[0.08] border border-[#A3E635]/40">
+        <svg class="w-5 h-5 text-[#A3E635]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="2"/>
+          <ellipse cx="12" cy="12" rx="10" ry="4.5" transform="rotate(30 12 12)"/>
+          <ellipse cx="12" cy="12" rx="10" ry="4.5" transform="rotate(-30 12 12)"/>
+        </svg>
+      </div>
+      <div>
+        <div class="text-sm sm:text-base font-extrabold tracking-wider leading-none">
+          <span class="text-white">ATOM</span><span class="text-[#A3E635]">LAB</span>
+        </div>
+        <div class="font-mono text-[9.5px] uppercase tracking-[0.14em] text-[#64748B] mt-1">
+          ATOMIC MODELS · STRUCTURE OF ATOM
+        </div>
+      </div>
+    </button>
+
+    <div class="flex items-center gap-2 sm:gap-4">
+      <nav class="hidden lg:flex items-center gap-1.5">
+        <button data-nav="overview" onclick="switchView('overview')" class="nav-btn active">Overview</button>
+        <button data-nav="sim" onclick="switchView('sim')" class="nav-btn">Simulation lab</button>
+        <button data-nav="games" onclick="switchView('games')" class="nav-btn">Game centre</button>
+        <button data-nav="compare" onclick="switchView('compare')" class="nav-btn">Compare models</button>
+        <button data-nav="timeline" onclick="switchView('timeline')" class="nav-btn">Research notes</button>
+      </nav>
+
+      <button onclick="toggleMobileMenu()" class="lg:hidden p-2 rounded-lg border border-white/10 bg-[#0D131F] text-white cursor-pointer" aria-label="Menu">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- MOBILE DRAWER -->
+  <div id="mobileMenuDrawer" class="hidden lg:hidden border-b border-white/[0.08] bg-[#080B11] px-4 py-3 z-40">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <button data-nav-mobile="overview" onclick="switchView('overview'); toggleMobileMenu(false);" class="p-2.5 rounded-lg border border-white/10 text-xs font-semibold text-left text-white bg-[#0D131F]">Overview</button>
+      <button data-nav-mobile="sim" onclick="switchView('sim'); toggleMobileMenu(false);" class="p-2.5 rounded-lg border border-white/10 text-xs font-semibold text-left text-slate-300 bg-[#0D131F]">Simulation lab</button>
+      <button data-nav-mobile="games" onclick="switchView('games'); toggleMobileMenu(false);" class="p-2.5 rounded-lg border border-white/10 text-xs font-semibold text-left text-slate-300 bg-[#0D131F]">Game centre</button>
+      <button data-nav-mobile="compare" onclick="switchView('compare'); toggleMobileMenu(false);" class="p-2.5 rounded-lg border border-white/10 text-xs font-semibold text-left text-slate-300 bg-[#0D131F]">Compare models</button>
+      <button data-nav-mobile="timeline" onclick="switchView('timeline'); toggleMobileMenu(false);" class="p-2.5 rounded-lg border border-white/10 text-xs font-semibold text-left text-slate-300 bg-[#0D131F]">Research notes</button>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="flex-1 w-full min-h-0 overflow-hidden relative">
+
+    <!-- ==========================================
+         VIEW 1: OVERVIEW HOME PAGE
+         ========================================== -->
+    <section id="view-overview" class="view-section active flex-col overflow-y-auto bg-[#070A10] text-white">
+      <div class="max-w-[1340px] mx-auto px-6 sm:px-10 lg:px-14 pt-10 sm:pt-16 pb-14 w-full">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-6 items-center">
+          <!-- Left Column -->
+          <div class="lg:col-span-6 flex flex-col items-start">
+            <div class="flex items-center gap-2.5 mb-6">
+              <span class="w-2 h-2 rounded-full bg-[#A3E635] shadow-[0_0_10px_#A3E635]"></span>
+              <span class="font-mono text-[11px] sm:text-xs uppercase tracking-[0.16em] text-[#94A3B8] font-semibold">
+                INTERACTIVE SCIENCE EXHIBIT · ROUND 2
+              </span>
+            </div>
+
+            <h1 class="font-extrabold tracking-[-0.035em] leading-[1.02] text-[clamp(2.85rem,5.4vw,4.65rem)] mb-6">
+              <span class="block text-white">Explore the</span>
+              <span class="block text-white">atom.</span>
+              <span class="block text-[#A3E635]">Question</span>
+              <span class="block text-[#A3E635]">everything.</span>
+            </h1>
+
+            <p class="text-[#94A3B8] text-sm sm:text-base leading-[1.65] max-w-[500px] mb-8 font-normal">
+              Explore atomic models, investigate the structure of atoms, and test your understanding with fresh challenges from the foundations through Class 11 NCERT.
+            </p>
+
+            <div class="flex flex-wrap items-center gap-6 mb-12">
+              <button onclick="switchView('sim')" class="bg-[#A3E635] hover:bg-[#bef264] text-[#070A10] font-bold text-sm px-6 py-3.5 rounded-[10px] inline-flex items-center gap-2.5 shadow-[0_0_25px_rgba(163,230,53,0.28)] transition transform hover:-translate-y-0.5 cursor-pointer">
+                <span>Enter simulation lab</span>
+                <span class="text-base leading-none">↗</span>
+              </button>
+              <button onclick="switchView('compare')" class="text-white hover:text-[#A3E635] font-bold text-sm transition cursor-pointer">
+                Compare atomic models
+              </button>
+            </div>
+
+            <div class="w-full max-w-[460px] pt-7 border-t border-white/[0.08] grid grid-cols-3 gap-6">
+              <div>
+                <div class="text-2xl sm:text-[28px] font-extrabold text-white tracking-tight leading-none mb-1.5">5</div>
+                <div class="text-xs text-[#64748B] font-medium">atomic models</div>
+              </div>
+              <div>
+                <div class="text-2xl sm:text-[28px] font-extrabold text-white tracking-tight leading-none mb-1.5">2</div>
+                <div class="text-xs text-[#64748B] font-medium">atomic games</div>
+              </div>
+              <div>
+                <div class="text-2xl sm:text-[28px] font-extrabold text-white tracking-tight leading-none mb-1.5">∞</div>
+                <div class="text-xs text-[#64748B] font-medium">questions to explore</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: 3D Hero Atom Field Canvas -->
+          <div class="lg:col-span-6 relative h-[390px] sm:h-[460px] w-full flex items-center justify-center">
+            <canvas id="heroAtomCanvas" class="w-full h-full block"></canvas>
+
+            <div class="absolute top-[16%] left-[6%] sm:left-[10%] px-3.5 py-2 rounded-lg border border-white/[0.09] bg-[#0D131F]/80 backdrop-blur-md font-mono text-[11px] tracking-[0.12em] text-[#94A3B8] flex items-center gap-2.5 shadow-lg pointer-events-none">
+              <span>NUCLEUS</span>
+              <span class="text-[#A3E635] font-bold">+Z</span>
+            </div>
+
+            <div class="absolute bottom-[13%] right-[4%] sm:right-[6%] px-3.5 py-2 rounded-lg border border-white/[0.09] bg-[#0D131F]/80 backdrop-blur-md font-mono text-[11px] tracking-[0.12em] text-[#94A3B8] flex items-center gap-2.5 shadow-lg pointer-events-none">
+              <span>ELECTRON CLOUD</span>
+              <span class="text-[#A3E635] font-bold">|ψ|²</span>
+            </div>
+
+            <div class="absolute bottom-2 left-[6%] sm:left-[10%] font-mono text-[10px] tracking-[0.16em] text-[#475569] leading-relaxed uppercase pointer-events-none">
+              <div>ATOM SYSTEM / 001</div>
+              <div>FIELD VISUALIZATION</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="max-w-[1340px] mx-auto px-6 sm:px-10 lg:px-14 w-full">
+        <div class="w-full h-px bg-white/[0.07]"></div>
+      </div>
+
+      <!-- THE LABORATORY 3-CARD SECTION -->
+      <div class="max-w-[1340px] mx-auto px-6 sm:px-10 lg:px-14 py-14 sm:py-20 w-full">
+        <div class="font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[#A3E635] mb-3">
+          THE LABORATORY
+        </div>
+        <h2 class="text-[clamp(1.85rem,3.2vw,2.6rem)] font-extrabold text-white tracking-[-0.025em] mb-10">
+          Explore, experiment, and solve.
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <!-- Card 1 -->
+          <div onclick="switchView('sim')" class="group bg-[#0B0F17] border border-white/[0.08] hover:border-[#A3E635]/40 rounded-[16px] p-6 flex flex-col justify-between transition duration-300 hover:-translate-y-1 cursor-pointer">
+            <div>
+              <div class="font-mono text-[11px] uppercase tracking-[0.14em] text-[#64748B] mb-4">01 / ATOMIC STRUCTURE</div>
+              <div class="w-full h-[190px] rounded-[12px] bg-[#070A10] border border-white/[0.04] mb-6 flex items-center justify-center relative overflow-hidden" style="background: radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.12), rgba(7, 10, 16, 0.95) 70%)">
+                <svg width="130" height="130" viewBox="0 0 130 130" fill="none">
+                  <ellipse cx="65" cy="65" rx="22" ry="52" stroke="#818CF8" stroke-width="1.3" opacity="0.75" />
+                  <ellipse cx="65" cy="65" rx="22" ry="52" transform="rotate(60 65 65)" stroke="#38BDF8" stroke-width="1.3" opacity="0.85" />
+                  <ellipse cx="65" cy="65" rx="22" ry="52" transform="rotate(-60 65 65)" stroke="#A3E635" stroke-width="1.3" opacity="0.8" />
+                  <circle cx="65" cy="65" r="8" fill="#FB923C" />
+                </svg>
+              </div>
+              <h3 class="text-xl font-extrabold text-white mb-2.5 tracking-tight">Simulation lab</h3>
+              <p class="text-xs sm:text-sm text-[#94A3B8] leading-relaxed mb-6">
+                Compare five atomic models and observe particle scattering and photon interactions.
+              </p>
+            </div>
+            <div class="inline-flex items-center gap-1.5 text-xs font-bold text-[#A3E635] group-hover:translate-x-1 transition">
+              <span>Open laboratory</span><span>↗</span>
+            </div>
+          </div>
+
+          <!-- Card 2 -->
+          <div onclick="switchView('games')" class="group bg-[#0B0F17] border border-white/[0.08] hover:border-[#A3E635]/40 rounded-[16px] p-6 flex flex-col justify-between transition duration-300 hover:-translate-y-1 cursor-pointer">
+            <div>
+              <div class="font-mono text-[11px] uppercase tracking-[0.14em] text-[#64748B] mb-4">02 / ATOMIC STRUCTURE</div>
+              <div class="w-full h-[190px] rounded-[12px] bg-[#070A10] border border-white/[0.04] mb-6 flex items-center justify-center relative overflow-hidden" style="background: radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.12), rgba(7, 10, 16, 0.95) 70%)">
+                <div class="relative">
+                  <svg width="130" height="130" viewBox="0 0 130 130" fill="none">
+                    <ellipse cx="65" cy="65" rx="22" ry="48" transform="rotate(55 65 65)" stroke="#A3E635" stroke-width="1.4" opacity="0.85" />
+                    <ellipse cx="65" cy="65" rx="22" ry="48" transform="rotate(-55 65 65)" stroke="#38BDF8" stroke-width="1.4" opacity="0.85" />
+                    <circle cx="65" cy="65" r="8" fill="#FB923C" />
+                  </svg>
+                  <span class="absolute top-3 -right-2 font-mono text-sm font-bold text-[#A78BFA]">?</span>
+                </div>
+              </div>
+              <h3 class="text-xl font-extrabold text-white mb-2.5 tracking-tight">Game centre</h3>
+              <p class="text-xs sm:text-sm text-[#94A3B8] leading-relaxed mb-6">
+                Build atoms and solve fresh atomic mysteries, from beginner to Class 11 level.
+              </p>
+            </div>
+            <div class="inline-flex items-center gap-1.5 text-xs font-bold text-[#A3E635] group-hover:translate-x-1 transition">
+              <span>Play challenges</span><span>↗</span>
+            </div>
+          </div>
+
+          <!-- Card 3 -->
+          <div onclick="switchView('compare')" class="group bg-[#0B0F17] border border-white/[0.08] hover:border-[#A3E635]/40 rounded-[16px] p-6 flex flex-col justify-between transition duration-300 hover:-translate-y-1 cursor-pointer">
+            <div>
+              <div class="font-mono text-[11px] uppercase tracking-[0.14em] text-[#64748B] mb-4">03 / SCIENTIFIC HISTORY</div>
+              <div class="w-full h-[190px] rounded-[12px] bg-[#070A10] border border-white/[0.04] mb-6 flex items-center justify-center gap-3 relative overflow-hidden" style="background: radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.11), rgba(7, 10, 16, 0.95) 70%)">
+                <div class="px-3.5 py-2.5 rounded-lg border border-white/[0.1] bg-[#0D131F]/90 font-mono text-xs font-bold text-[#A3E635] shadow-md">1803</div>
+                <div class="px-3.5 py-2.5 rounded-lg border border-white/[0.1] bg-[#0D131F]/90 font-mono text-xs font-bold text-[#A3E635] shadow-md">1911</div>
+                <div class="px-3.5 py-2.5 rounded-lg border border-white/[0.1] bg-[#0D131F]/90 font-mono text-xs font-bold text-[#A3E635] shadow-md">1926</div>
+              </div>
+              <h3 class="text-xl font-extrabold text-white mb-2.5 tracking-tight">Compare models</h3>
+              <p class="text-xs sm:text-sm text-[#94A3B8] leading-relaxed mb-6">
+                See what each model explained, what it missed, and how science moved forward.
+              </p>
+            </div>
+            <div class="inline-flex items-center gap-1.5 text-xs font-bold text-[#A3E635] group-hover:translate-x-1 transition">
+              <span>Explore the timeline</span><span>↗</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         VIEW 2: SIMULATION LAB
+         ========================================== -->
+    <section id="view-sim" class="view-section flex-col overflow-hidden transition-colors duration-500" style="background-color: var(--bg-main); color: var(--text-main);">
+      <div class="flex-1 flex flex-col lg:flex-row min-h-0 overflow-y-auto lg:overflow-hidden">
+
+        <!-- LEFT SIDEBAR: PARTICLE BEAM GUN -->
+        <aside id="simLeftSidebar" class="w-full lg:w-[295px] xl:w-[310px] flex-shrink-0 p-4 border-b lg:border-b-0 lg:border-r flex flex-col gap-4 lg:overflow-y-auto transition-colors duration-500" style="background-color: var(--bg-panel); border-color: var(--border);">
+          <div class="p-4 rounded-2xl border shadow-lg flex flex-col gap-4 transition-colors duration-500" style="background-color: var(--bg-card); border-color: var(--border);">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                <span style="color: var(--accent);">⚡</span> Particle Beam Gun
+              </span>
+              <span id="beamStatusBadge" class="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border" style="background-color: var(--accent-soft); border-color: var(--border); color: var(--accent);">
+                ACTIVE
+              </span>
+            </div>
+
+            <button id="toggleBeamBtn" onclick="toggleBeam()" class="w-full py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-md" style="background-color: var(--accent); color: #070A10;">
+              Pause Beam
+            </button>
+
+            <div>
+              <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-2">Projectile Type</span>
+              <div class="grid grid-cols-5 gap-1.5" id="particleTypeGrid">
+                <button onclick="setParticleType('proton')" data-ptype="proton" class="ptype-btn py-2 px-1 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-0.5 bg-[#0B0F17] border-white/10 text-slate-400">
+                  <span class="font-mono text-xs font-bold text-white">p⁺</span><span class="text-[9px]">Proton</span>
+                </button>
+                <button onclick="setParticleType('neutron')" data-ptype="neutron" class="ptype-btn py-2 px-1 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-0.5 bg-[#0B0F17] border-white/10 text-slate-400">
+                  <span class="font-mono text-xs font-bold text-white">n⁰</span><span class="text-[9px]">Neutron</span>
+                </button>
+                <button onclick="setParticleType('electron')" data-ptype="electron" class="ptype-btn py-2 px-1 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-0.5 bg-[#0B0F17] border-white/10 text-slate-400">
+                  <span class="font-mono text-xs font-bold text-white">e⁻</span><span class="text-[9px]">Electron</span>
+                </button>
+                <button onclick="setParticleType('alpha')" data-ptype="alpha" class="ptype-btn py-2 px-1 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-0.5 bg-[#A3E635]/15 border-[#A3E635] text-[#A3E635]">
+                  <span class="font-mono text-xs font-bold text-white">α²⁺</span><span class="text-[9px]">Alpha</span>
+                </button>
+                <button onclick="setParticleType('photon')" data-ptype="photon" class="ptype-btn py-2 px-1 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-0.5 bg-[#0B0F17] border-white/10 text-slate-400">
+                  <span class="font-mono text-xs font-bold text-white">γ</span><span class="text-[9px]">Photon</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="space-y-3 pt-1">
+              <div>
+                <div class="flex justify-between text-xs mb-1.5">
+                  <span class="text-slate-400 font-medium">Beam Energy</span>
+                  <span id="beamEnergyLabel" class="font-mono font-bold" style="color: var(--accent);">6.0 MeV</span>
+                </div>
+                <input type="range" min="2.0" max="12.0" step="0.5" value="6.0" oninput="updateBeamEnergy(this.value)" class="w-full cursor-pointer" />
+              </div>
+
+              <div>
+                <div class="flex justify-between text-xs mb-1.5">
+                  <span class="text-slate-400 font-medium">Beam Density</span>
+                  <span id="beamDensityLabel" class="font-mono font-bold" style="color: var(--accent);">Medium</span>
+                </div>
+                <input type="range" min="1" max="3" step="1" value="2" oninput="updateBeamDensity(this.value)" class="w-full cursor-pointer" />
+              </div>
+
+              <div id="rutherfordZControl" class="pt-2 border-t border-white/[0.07]">
+                <div class="flex justify-between text-xs mb-1.5">
+                  <span class="text-slate-400 font-medium">Target Nucleus (Z)</span>
+                  <span id="targetZLabel" class="font-mono font-bold text-amber-400">Z = 79 (Au)</span>
+                </div>
+                <input type="range" min="20" max="100" value="79" oninput="updateTargetZ(this.value)" class="w-full accent-amber-400 cursor-pointer" />
+              </div>
+            </div>
+
+            <button id="exciteElectronBtn" onclick="triggerManualExcitation()" class="w-full py-2.5 px-3 rounded-xl border border-[#A3E635]/40 bg-[#A3E635]/10 text-[#A3E635] text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-[#A3E635]/20 transition cursor-pointer">
+              ✨ Excite Electron State
+            </button>
+
+            <div class="flex items-center justify-between pt-2 border-t border-white/[0.07] text-xs text-slate-300 font-medium">
+              <span>Show Trajectory Traces</span>
+              <input type="checkbox" checked onchange="showTraces = this.checked" class="w-4 h-4 accent-[#A3E635] cursor-pointer rounded" />
+            </div>
+          </div>
+        </aside>
+
+        <!-- CENTER STAGE + CONTROL BAR + SPECTROMETER -->
+        <section class="flex-1 flex flex-col min-w-0 min-h-[460px] lg:min-h-0" style="background-color: var(--canvas-bg);">
+          <div id="simStageWrap" class="flex-1 relative w-full overflow-hidden cursor-grab active:cursor-grabbing graph-grid-bg transition-colors duration-500" style="background-color: var(--canvas-bg);">
+            <!-- Top-Left Era & Model Badge -->
+            <div class="absolute top-3.5 left-3.5 z-10 px-3.5 py-2 rounded-xl border backdrop-blur-md pointer-events-none transition-colors duration-500" style="background-color: rgba(11, 16, 27, 0.88); border-color: var(--border);">
+              <div id="stageEraBadge" class="text-[10px] font-mono font-bold uppercase tracking-widest mb-0.5" style="color: var(--accent);">
+                1911 • CAVENDISH GOLD-FOIL BUNKER
+              </div>
+              <div id="stageModelTitle" class="text-xs font-extrabold uppercase tracking-wider text-white">
+                1911 • Ernest Rutherford
+              </div>
+              <div id="stageModelSubtitle" class="text-[11px] text-slate-300 font-medium mt-0.5">
+                Nuclear Gold-Foil Model
+              </div>
+            </div>
+
+            <!-- Top-Right Angular Scattering HUD -->
+            <div id="anglesHudBox" class="absolute top-3.5 right-3.5 z-10 p-3 rounded-xl border border-white/[0.09] bg-[#0B0F17]/90 backdrop-blur-md w-[240px] sm:w-[260px] pointer-events-none shadow-xl">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] font-mono font-bold uppercase tracking-wider text-[#A3E635]">Angular Scattering</span>
+                <span id="lastAngleBadge" class="font-mono text-[11px] font-extrabold px-2 py-0.5 rounded bg-white/[0.07] text-white">θ = 0.0°</span>
+              </div>
+              <div class="space-y-1.5 text-[10px] font-mono">
+                <div>
+                  <div class="flex justify-between text-slate-300 mb-0.5">
+                    <span>0°–10° Straight</span>
+                    <span id="pctStraight" class="text-emerald-400 font-bold">90.0%</span>
+                  </div>
+                  <div class="w-full h-1.5 rounded-full bg-white/[0.07] overflow-hidden">
+                    <div id="barStraight" class="h-full bg-emerald-400 transition-all duration-300" style="width: 90%"></div>
+                  </div>
+                </div>
+                <div>
+                  <div class="flex justify-between text-slate-300 mb-0.5">
+                    <span>10°–135° Deflected</span>
+                    <span id="pctWide" class="text-amber-400 font-bold">9.0%</span>
+                  </div>
+                  <div class="w-full h-1.5 rounded-full bg-white/[0.07] overflow-hidden">
+                    <div id="barWide" class="h-full bg-amber-400 transition-all duration-300" style="width: 27%"></div>
+                  </div>
+                </div>
+                <div>
+                  <div class="flex justify-between text-slate-300 mb-0.5">
+                    <span>135°–180° Rebound</span>
+                    <span id="pctBack" class="text-rose-400 font-bold">1.0%</span>
+                  </div>
+                  <div class="w-full h-1.5 rounded-full bg-white/[0.07] overflow-hidden">
+                    <div id="barBack" class="h-full bg-rose-400 transition-all duration-300" style="width: 8%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Bottom-Left Legend -->
+            <div id="stageLegendBox" class="absolute bottom-3 left-3.5 z-10 px-3 py-1.5 rounded-lg border border-white/[0.08] bg-[#0B0F17]/85 backdrop-blur-md flex flex-wrap items-center gap-3 pointer-events-none"></div>
+
+            <canvas id="simCanvas" class="absolute inset-0 w-full h-full block"></canvas>
+          </div>
+
+          <!-- STAGE CONTROL BAR ABOVE SPECTROMETER -->
+          <div class="px-4 py-2 bg-[#0B0F17] border-t border-white/[0.08] flex flex-wrap items-center justify-between gap-2 flex-shrink-0">
+            <div class="flex items-center gap-2">
+              <button id="btnAutoSpin" onclick="toggleAutoSpin()" class="px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer bg-[#A3E635]/15 border-[#A3E635]/40 text-[#A3E635]">
+                <span>3D Spin: ON</span>
+              </button>
+              <button id="btnAnglesHud" onclick="toggleAnglesHud()" class="px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer bg-sky-400/15 border-sky-400/40 text-sky-400">
+                <span>Angles HUD</span>
+              </button>
+            </div>
+
+            <div class="flex items-center gap-1 bg-[#111827] border border-white/[0.08] rounded-lg p-0.5">
+              <button onclick="adjustZoom(-0.15)" class="px-2.5 py-1 rounded hover:bg-white/[0.07] text-slate-300 text-xs font-bold cursor-pointer">− Smaller</button>
+              <button id="zoomPctLabel" onclick="resetZoomAndRot()" class="px-2.5 py-1 font-mono text-xs font-bold text-[#A3E635] hover:bg-white/[0.05] rounded cursor-pointer">100%</button>
+              <button onclick="adjustZoom(0.15)" class="px-2.5 py-1 rounded hover:bg-white/[0.07] text-slate-300 text-xs font-bold cursor-pointer">+ Bigger</button>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button id="btnExpandStage" onclick="toggleExpandPanels()" class="px-3 py-1.5 rounded-lg border border-white/[0.08] bg-[#111827] text-slate-200 text-xs font-semibold transition cursor-pointer">
+                Expand Stage
+              </button>
+              <button onclick="toggleStageFullscreen()" class="px-3 py-1.5 rounded-lg border border-white/[0.08] bg-[#111827] hover:border-[#A3E635]/50 text-slate-200 text-xs font-semibold transition cursor-pointer">
+                Fullscreen
+              </button>
+              <button onclick="resetSimParticles()" class="px-2.5 py-1.5 rounded-lg border border-white/[0.08] bg-[#111827] hover:text-rose-400 text-slate-300 text-xs font-semibold transition cursor-pointer">
+                Reset
+              </button>
+            </div>
+          </div>
+
+          <!-- SPECTROMETER BAR -->
+          <div class="h-[68px] flex-shrink-0 px-4 py-2 bg-[#080B11] border-t border-white/[0.07] flex flex-col justify-between">
+            <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider">
+              <span class="text-slate-400">Spectrometer (Emitted / Absorbed Photons)</span>
+              <div class="flex gap-3 font-mono text-[10px]">
+                <span class="text-purple-400">UV (&lt;400nm)</span>
+                <span class="text-sky-400">Visible (400–700nm)</span>
+                <span class="text-rose-400">IR (&gt;700nm)</span>
+              </div>
+            </div>
+            <div class="relative w-full h-4 rounded overflow-hidden border border-white/[0.08]" style="background: linear-gradient(90deg, #1e0538 0%, #4c1d95 14%, #2563eb 28%, #06b6d4 42%, #22c55e 56%, #eab308 75%, #ef4444 85%, #3b0707 100%);">
+              <div class="absolute top-0 bottom-0 w-1 bg-white shadow-[0_0_10px_#8B5CF6]" style="left: 42%;" title="410 nm"></div>
+              <div class="absolute top-0 bottom-0 w-1 bg-white shadow-[0_0_10px_#3B82F6]" style="left: 46%;" title="434 nm"></div>
+              <div class="absolute top-0 bottom-0 w-1 bg-white shadow-[0_0_10px_#06B6D4]" style="left: 52%;" title="486 nm"></div>
+              <div class="absolute top-0 bottom-0 w-1 bg-white shadow-[0_0_10px_#EF4444]" style="left: 74%;" title="656 nm"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- RIGHT SIDEBAR: MODEL SELECTOR + TAKEAWAYS + TELEMETRY -->
+        <aside id="simRightSidebar" class="w-full lg:w-[300px] xl:w-[330px] flex-shrink-0 p-4 border-t lg:border-t-0 lg:border-l flex flex-col gap-4 lg:overflow-y-auto transition-colors duration-500" style="background-color: var(--bg-panel); border-color: var(--border);">
+          <div class="p-4 rounded-2xl border shadow-lg transition-colors duration-500" style="background-color: var(--bg-card); border-color: var(--border);">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-bold uppercase tracking-wider">Time-Machine Models</span>
+              <span id="modelOrderBadge" class="font-mono text-xs font-bold" style="color: var(--accent);">3 / 5</span>
+            </div>
+            <div id="modelButtonsList" class="space-y-1.5"></div>
+          </div>
+
+          <div class="p-4 rounded-2xl border shadow-lg space-y-3 transition-colors duration-500" style="background-color: var(--bg-card); border-color: var(--border);">
+            <div class="text-xs font-bold uppercase tracking-wider" style="color: var(--accent);">Model Key Takeaways</div>
+            <div>
+              <div class="text-[11px] font-semibold text-white mb-0.5">Core Postulate</div>
+              <p id="takeawayPostulate" class="text-xs leading-relaxed text-slate-300"></p>
+            </div>
+            <div class="pt-2 border-t border-white/[0.06]">
+              <div class="text-[11px] font-semibold text-sky-400 mb-0.5">Scattering Behavior</div>
+              <p id="takeawayReaction" class="text-xs leading-relaxed text-slate-300"></p>
+            </div>
+          </div>
+
+          <div class="p-4 rounded-2xl border shadow-lg flex-1 flex flex-col min-h-[140px] transition-colors duration-500" style="background-color: var(--bg-card); border-color: var(--border);">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider" style="color: var(--accent);">Live Telemetry Log</span>
+              <button onclick="clearLogs()" class="text-[10px] px-2 py-0.5 rounded border border-white/10 text-slate-400 hover:text-white cursor-pointer">Clear</button>
+            </div>
+            <div id="telemetryLogList" class="flex-1 rounded-xl p-2.5 font-mono text-[11px] space-y-1.5 overflow-y-auto max-h-36 border border-white/[0.05] text-slate-200" style="background-color: var(--bg-main);"></div>
+          </div>
+        </aside>
+
+      </div>
+    </section>
+
+    <!-- ==========================================
+         VIEW 3: GAME CENTRE (BUILD & MYSTERY)
+         ========================================== -->
+    <section id="view-games" class="view-section flex-col overflow-hidden bg-[#070A10]">
+      <div class="px-4 sm:px-6 py-2.5 border-b border-white/[0.08] bg-[#0B0F17] flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
+        <div class="flex items-center gap-2">
+          <span class="text-[#A3E635]">🎮</span>
+          <span class="font-mono text-xs uppercase tracking-wider text-[#94A3B8] font-bold">
+            GAME CENTRE · MIXED DIFFICULTY (CLASS 9 TO CLASS 11 NCERT)
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="tabBtnBuild" onclick="switchGameTab('build')" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer bg-[#A3E635]/15 border border-[#A3E635]/40 text-[#D9F99D]">
+            Game 1: Atom Architect (Build)
+          </button>
+          <button id="tabBtnMystery" onclick="switchGameTab('mystery')" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer border border-white/10 text-slate-400">
+            Game 2: Quantum Detective (Mystery)
+          </button>
+        </div>
+      </div>
+
+      <!-- GAME 1: ATOM ARCHITECT -->
+      <div id="gameBuildContainer" class="flex-1 overflow-y-auto p-4 sm:p-6">
+        <div class="max-w-7xl mx-auto flex flex-col gap-4">
+          <div class="p-4 rounded-xl border border-white/[0.08] bg-[#0B101B] flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="px-2.5 py-0.5 rounded text-xs font-extrabold bg-[#A3E635]/15 text-[#A3E635]">GAME 1: BUILD MODE</span>
+                <h2 class="text-lg font-extrabold text-white">Atom Architect — Subatomic &amp; Orbital Engineer</h2>
+              </div>
+              <p class="text-xs text-slate-400 mt-0.5">Progressive challenges from Class 9 Bohr-Bury shells to Class 11 NCERT Chapter 2 Aufbau &amp; Hund's Rule.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <button onclick="setBuildDifficulty('easy')" data-bdiff="easy" class="bdiff-btn px-3 py-1.5 rounded-lg border text-xs font-bold uppercase cursor-pointer bg-[#A3E635] text-slate-950 border-[#A3E635]">Easy (Class 9)</button>
+              <button onclick="setBuildDifficulty('medium')" data-bdiff="medium" class="bdiff-btn px-3 py-1.5 rounded-lg border text-xs font-bold uppercase cursor-pointer bg-[#111827] text-white border-white/10">Medium (Ions/Isotopes)</button>
+              <button onclick="setBuildDifficulty('hard')" data-bdiff="hard" class="bdiff-btn px-3 py-1.5 rounded-lg border text-xs font-bold uppercase cursor-pointer bg-[#111827] text-white border-white/10">Hard (Class 11 NCERT)</button>
+              <button onclick="nextBuildChallenge()" class="px-3 py-1.5 rounded-lg border border-sky-400 text-sky-400 bg-[#111827] text-xs font-bold cursor-pointer">✨ New Question</button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div class="p-4 rounded-xl border border-white/[0.08] bg-[#0B101B] flex flex-col justify-between gap-4">
+              <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                  <span id="buildScoreLabel" class="font-mono text-xs font-bold text-emerald-400">Score: 0</span>
+                  <span id="buildStreakLabel" class="font-mono text-xs font-bold text-amber-400">Streak: 0🔥</span>
+                </div>
+
+                <div class="p-3.5 rounded-xl border border-[#A3E635] bg-[#111827]">
+                  <div id="buildChallengeTitle" class="text-[11px] font-bold uppercase tracking-wider text-[#A3E635] mb-1"></div>
+                  <p id="buildChallengePrompt" class="text-xs leading-relaxed font-medium text-white"></p>
+                </div>
+
+                <!-- Steppers -->
+                <div class="space-y-2.5">
+                  <div class="p-2.5 rounded-lg border border-white/[0.08] bg-[#111827] flex items-center justify-between">
+                    <div>
+                      <span class="text-xs font-bold text-rose-400 block">Protons (Z)</span>
+                      <span id="valProtons" class="font-mono text-sm font-extrabold">1</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <button onclick="stepBuildPart('p', -1)" class="w-9 h-9 rounded-lg border border-white/10 bg-[#0B101B] font-bold cursor-pointer">−</button>
+                      <button onclick="stepBuildPart('p', 1)" class="w-9 h-9 rounded-lg bg-rose-500 text-slate-950 font-bold cursor-pointer">+</button>
+                    </div>
+                  </div>
+
+                  <div class="p-2.5 rounded-lg border border-white/[0.08] bg-[#111827] flex items-center justify-between">
+                    <div>
+                      <span class="text-xs font-bold text-slate-400 block">Neutrons (N)</span>
+                      <span id="valNeutrons" class="font-mono text-sm font-extrabold">0</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <button onclick="stepBuildPart('n', -1)" class="w-9 h-9 rounded-lg border border-white/10 bg-[#0B101B] font-bold cursor-pointer">−</button>
+                      <button onclick="stepBuildPart('n', 1)" class="w-9 h-9 rounded-lg bg-slate-400 text-slate-950 font-bold cursor-pointer">+</button>
+                    </div>
+                  </div>
+
+                  <div class="p-2.5 rounded-lg border border-white/[0.08] bg-[#111827] flex items-center justify-between">
+                    <div>
+                      <span class="text-xs font-bold text-sky-400 block">Electrons (e⁻)</span>
+                      <span id="valElectrons" class="font-mono text-sm font-extrabold">1</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <button onclick="stepBuildPart('e', -1)" class="w-9 h-9 rounded-lg border border-white/10 bg-[#0B101B] font-bold cursor-pointer">−</button>
+                      <button onclick="stepBuildPart('e', 1)" class="w-9 h-9 rounded-lg bg-sky-400 text-slate-950 font-bold cursor-pointer">+</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="flex gap-2">
+                  <button onclick="verifyAtomBuild()" class="flex-1 py-2.5 rounded-lg font-extrabold text-xs bg-[#A3E635] text-slate-950 shadow-lg cursor-pointer">
+                    ✔ Submit Atom Build
+                  </button>
+                  <button onclick="toggleBuildHint()" class="px-3 py-2.5 rounded-lg border border-white/10 bg-[#111827] text-xs font-bold text-slate-300 cursor-pointer">
+                    Hint
+                  </button>
+                </div>
+
+                <div id="buildHintBox" class="hidden p-2.5 rounded-lg border border-white/10 bg-[#111827] text-xs text-amber-300"></div>
+                <div id="buildFeedbackBox" class="hidden p-3 rounded-lg border text-xs leading-relaxed"></div>
+              </div>
+            </div>
+
+            <div class="lg:col-span-2 flex flex-col gap-4">
+              <div id="buildCanvasWrap" class="relative rounded-xl border border-white/[0.08] bg-[#050811] overflow-hidden min-h-[320px] flex-1">
+                <div class="absolute top-3 left-3 z-10 px-3 py-2 rounded-lg border border-white/10 bg-slate-900/85 font-mono text-xs">
+                  <div id="buildSymbolDisplay" class="font-extrabold text-sm text-[#A3E635]">¹₁H⁰</div>
+                  <div id="buildMassChargeDisplay" class="text-[11px] text-slate-400">Mass A = 1 • Charge = 0</div>
+                </div>
+                <canvas id="buildAtomCanvas" class="absolute inset-0 w-full h-full block"></canvas>
+              </div>
+
+              <div class="p-3.5 rounded-xl border border-white/[0.08] bg-[#0B101B]">
+                <div class="text-xs font-bold uppercase tracking-wider mb-2 flex items-center justify-between text-slate-400">
+                  <span>Class 11 NCERT Subshell Orbital Diagram (Hund's Rule Spin Pairing)</span>
+                  <span id="orbitalTotalELabel" class="font-mono text-[11px] text-[#A3E635]">Total e⁻ = 1</span>
+                </div>
+                <div id="subshellBoxesGrid" class="flex flex-wrap gap-3"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GAME 2: QUANTUM DETECTIVE -->
+      <div id="gameMysteryContainer" class="hidden flex-1 overflow-y-auto p-4 sm:p-6">
+        <div class="max-w-5xl mx-auto space-y-4">
+          <div class="p-4 rounded-xl border border-white/[0.08] bg-[#0B101B] flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="px-2.5 py-0.5 rounded text-xs font-extrabold bg-[#A3E635]/15 text-[#A3E635]">GAME 2: MYSTERY FORENSICS</span>
+                <h2 class="text-lg font-extrabold text-white">Quantum Detective — Spectroscopy &amp; Atomic Deduction</h2>
+              </div>
+              <p class="text-xs text-slate-400 mt-0.5">Run lab probes to uncover clues and deduce the unknown sample.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <button onclick="setMysteryDifficulty('easy')" data-mdiff="easy" class="mdiff-btn px-3 py-1.5 rounded-lg border text-xs font-bold uppercase cursor-pointer bg-[#A3E635] text-slate-950 border-[#A3E635]">Easy</button>
+              <button onclick="setMysteryDifficulty('medium')" data-mdiff="medium" class="mdiff-btn px-3 py-1.5 rounded-lg border text-xs font-bold uppercase cursor-pointer bg-[#111827] text-white border-white/10">Medium</button>
+              <button onclick="setMysteryDifficulty('hard')" data-mdiff="hard" class="mdiff-btn px-3 py-1.5 rounded-lg border text-xs font-bold uppercase cursor-pointer bg-[#111827] text-white border-white/10">Hard</button>
+              <button onclick="nextMysteryCase()" class="px-3 py-1.5 rounded-lg border border-sky-400 text-sky-400 bg-[#111827] text-xs font-bold cursor-pointer">✨ New Case</button>
+            </div>
+          </div>
+
+          <div class="p-5 rounded-xl border border-white/[0.08] bg-[#0B101B] space-y-4">
+            <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
+              <h3 id="mysteryCaseTitle" class="text-base font-extrabold text-[#A3E635]"></h3>
+              <span id="mysteryScoreLabel" class="font-mono text-sm font-extrabold text-emerald-400">Detective Score: 0 pts</span>
+            </div>
+
+            <div id="mysteryCluesGrid" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
+
+            <div class="pt-2">
+              <h4 id="mysteryQuestionText" class="text-sm font-bold text-white mb-3"></h4>
+              <div id="mysteryOptionsGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5"></div>
+            </div>
+
+            <div id="mysteryExplanationBox" class="hidden p-4 rounded-xl border border-[#A3E635] bg-[#111827] flex flex-col sm:flex-row sm:items-center justify-between gap-3"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         VIEW 4: COMPARE MODELS
+         ========================================== -->
+    <section id="view-compare" class="view-section flex-col overflow-y-auto p-4 sm:p-6 bg-[#070A10]">
+      <div class="max-w-7xl mx-auto w-full space-y-5">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <!-- Model A Card -->
+          <div class="rounded-xl border border-white/[0.08] bg-[#0B101B] flex flex-col overflow-hidden">
+            <div class="p-4 border-b border-white/[0.08] bg-[#111827] flex items-center justify-between gap-3">
+              <div>
+                <span id="compBadgeA" class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#A3E635]/15 text-[#A3E635]">MODEL A • 1904</span>
+                <h3 id="compTitleA" class="text-base font-extrabold text-white mt-1">J.J. Thomson — Plum Pudding Model</h3>
+              </div>
+              <select id="compSelectA" onchange="updateComparisonView()" class="px-3 py-2 rounded-lg border border-white/10 bg-[#0B101B] text-white text-xs font-bold outline-none cursor-pointer">
+                <option value="dalton">1. John Dalton (1803)</option>
+                <option value="thomson" selected>2. J.J. Thomson (1904)</option>
+                <option value="rutherford">3. Ernest Rutherford (1911)</option>
+                <option value="bohr">4. Niels Bohr (1913)</option>
+                <option value="schrodinger">5. Erwin Schrödinger (1926)</option>
+              </select>
+            </div>
+            <div id="compWrapA" class="relative h-56 w-full border-b border-white/[0.08] bg-[#050811] graph-grid-bg cursor-grab active:cursor-grabbing">
+              <canvas id="compCanvasA" class="absolute inset-0 w-full h-full block"></canvas>
+              <span class="absolute bottom-2.5 right-3 text-[11px] font-mono px-2 py-0.5 rounded border border-white/10 bg-slate-900/80 text-slate-400 pointer-events-none">Drag to rotate 3D</span>
+            </div>
+            <div id="compDetailsA" class="p-4 space-y-3 flex-1"></div>
+          </div>
+
+          <!-- Model B Card -->
+          <div class="rounded-xl border border-white/[0.08] bg-[#0B101B] flex flex-col overflow-hidden">
+            <div class="p-4 border-b border-white/[0.08] bg-[#111827] flex items-center justify-between gap-3">
+              <div>
+                <span id="compBadgeB" class="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-[#A3E635]/15 text-[#A3E635]">MODEL B • 1911</span>
+                <h3 id="compTitleB" class="text-base font-extrabold text-white mt-1">Ernest Rutherford — Nuclear Gold-Foil Model</h3>
+              </div>
+              <select id="compSelectB" onchange="updateComparisonView()" class="px-3 py-2 rounded-lg border border-white/10 bg-[#0B101B] text-white text-xs font-bold outline-none cursor-pointer">
+                <option value="dalton">1. John Dalton (1803)</option>
+                <option value="thomson">2. J.J. Thomson (1904)</option>
+                <option value="rutherford" selected>3. Ernest Rutherford (1911)</option>
+                <option value="bohr">4. Niels Bohr (1913)</option>
+                <option value="schrodinger">5. Erwin Schrödinger (1926)</option>
+              </select>
+            </div>
+            <div id="compWrapB" class="relative h-56 w-full border-b border-white/[0.08] bg-[#050811] graph-grid-bg cursor-grab active:cursor-grabbing">
+              <canvas id="compCanvasB" class="absolute inset-0 w-full h-full block"></canvas>
+              <span class="absolute bottom-2.5 right-3 text-[11px] font-mono px-2 py-0.5 rounded border border-white/10 bg-slate-900/80 text-slate-400 pointer-events-none">Drag to rotate 3D</span>
+            </div>
+            <div id="compDetailsB" class="p-4 space-y-3 flex-1"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         VIEW 5: RESEARCH NOTES / TIMELINE
+         ========================================== -->
+    <section id="view-timeline" onscroll="handleTimelineScroll(this)" class="view-section flex-col overflow-y-auto relative scroll-smooth bg-[#070A10]">
+      <div class="sticky top-0 left-0 right-0 z-30 h-1.5 bg-slate-900">
+        <div id="timelineProgressBar" class="h-full bg-[#A3E635] transition-all duration-75" style="width: 0%;"></div>
+      </div>
+      <div class="max-w-6xl mx-auto px-4 sm:px-8 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8 w-full">
+        <div class="lg:col-span-5 lg:sticky lg:top-12 h-fit flex flex-col items-center p-5 rounded-2xl border border-white/[0.08] bg-[#0B101B]">
+          <span id="timelineStageBadge" class="font-mono text-xs font-bold px-2.5 py-1 rounded mb-2 bg-[#A3E635]/15 text-[#A3E635]">
+            Scroll Progress: 0% • 1803
+          </span>
+          <canvas id="timelineMorphCanvas" class="w-[280px] h-[280px] sm:w-[320px] sm:h-[320px] block"></canvas>
+          <h3 id="timelineStageTitle" class="text-base font-extrabold mt-2 text-center text-white">John Dalton — Solid Indivisible Sphere Model</h3>
+          <p class="text-xs text-center mt-1 text-slate-400">Scroll down to advance history; scroll back up to smoothly reverse the timeline.</p>
+        </div>
+        <div id="timelineCardsList" class="lg:col-span-7 space-y-16 pb-24"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    /* ============================================================================
+       1. SCIENTIFIC DATABASE & ERA THEMES
+       ============================================================================ */
+    const ERA_THEMES = {
+      dalton: {
+        eraBadge: '1803 • GEORGIAN ROYAL ARCHIVE',
+        bgMain: '#110D0A', bgPanel: '#18120E', bgCard: '#221A14',
+        border: 'rgba(212, 175, 55, 0.28)', accent: '#D4AF37',
+        accentSoft: 'rgba(212, 175, 55, 0.15)', canvasBg: '#0C0907'
+      },
+      thomson: {
+        eraBadge: '1904 • VICTORIAN CATHODE LAB',
+        bgMain: '#05120E', bgPanel: '#091914', bgCard: '#0F241D',
+        border: 'rgba(16, 185, 129, 0.28)', accent: '#10B981',
+        accentSoft: 'rgba(16, 185, 129, 0.15)', canvasBg: '#030B08'
+      },
+      rutherford: {
+        eraBadge: '1911 • CAVENDISH GOLD-FOIL BUNKER',
+        bgMain: '#110E08', bgPanel: '#18140C', bgCard: '#221C11',
+        border: 'rgba(245, 158, 11, 0.28)', accent: '#F59E0B',
+        accentSoft: 'rgba(245, 158, 11, 0.15)', canvasBg: '#0A0805'
+      },
+      bohr: {
+        eraBadge: '1913 • COPENHAGEN QUANTUM BLUEPRINT',
+        bgMain: '#060D1A', bgPanel: '#0A1526', bgCard: '#102038',
+        border: 'rgba(56, 189, 248, 0.28)', accent: '#38BDF8',
+        accentSoft: 'rgba(56, 189, 248, 0.15)', canvasBg: '#040912'
+      },
+      schrodinger: {
+        eraBadge: '1926 • ZURICH WAVE-MECHANICS GRID',
+        bgMain: '#060712', bgPanel: '#0B0D1E', bgCard: '#12162F',
+        border: 'rgba(0, 240, 255, 0.28)', accent: '#00F0FF',
+        accentSoft: 'rgba(0, 240, 255, 0.14)', canvasBg: '#04050C'
+      }
+    };
+
+    const ATOMIC_MODELS = {
+      dalton: {
+        id: 'dalton', order: 1, year: '1803', name: 'John Dalton',
+        title: 'Solid Indivisible Sphere Model',
+        summary: 'Matter consists of solid, indivisible, neutral spheres of uniform density. Protons, neutrons, and electrons were completely unknown in 1803.',
+        reaction: 'Incoming projectiles collide elastically with the impenetrable solid sphere surface (R = 82 pm) and rebound at exact specular angles.',
+        legendItems: [{ color: '#C084FC', label: 'Indivisible Solid Atom (No p⁺ / e⁻)' }],
+        merits: [
+          'Explained the Law of Conservation of Mass and Law of Multiple Proportions',
+          'Established quantitative atomic weight ratios for chemical reactions'
+        ],
+        demerits: [
+          'Atom is treated as indivisible—no protons, neutrons, or electrons exist',
+          'Fails to account for isotopes, isobars, or photoelectric/spectral emissions'
+        ]
+      },
+      thomson: {
+        id: 'thomson', order: 2, year: '1904', name: 'J.J. Thomson',
+        title: 'Plum Pudding Model',
+        summary: 'The atom is a uniform, positively charged sphere of fluid with negatively charged electrons (e⁻) embedded inside like plums in a pudding.',
+        reaction: 'Charged particles experience a weak diffuse internal electric field (F ∝ r/R³) and local electron vibration, deflecting by only 1°–3°.',
+        legendItems: [
+          { color: '#FB7185', label: 'Diffuse Positive Sphere (+)' },
+          { color: '#38BDF8', label: 'Embedded Electron Plum (e⁻)' }
+        ],
+        merits: [
+          'Incorporated the newly discovered electron (e⁻, 1897) into atomic structure',
+          'Successfully explained the overall electrical neutrality of uncharged atoms'
+        ],
+        demerits: [
+          'Classical harmonic electron oscillations cannot produce Hydrogen’s Rydberg spectral series',
+          'Cannot explain wide-angle or 180° back-scattering of alpha particles (no dense nucleus)'
+        ]
+      },
+      rutherford: {
+        id: 'rutherford', order: 3, year: '1911', name: 'Ernest Rutherford',
+        title: 'Nuclear Gold-Foil Model',
+        summary: 'Nearly all mass and positive charge (+Ze) reside in a tiny central nucleus surrounded by vast empty space and classical planetary electrons.',
+        reaction: '~90% pass straight through (<10°), ~9% deflect at moderate/wide angles (10°–150°), and ~1% rebound at 150°–180° off the central Coulomb barrier.',
+        legendItems: [
+          { color: '#F59E0B', label: 'Positive Nucleus (+Ze)' },
+          { color: '#38BDF8', label: 'Planetary Electron (e⁻)' }
+        ],
+        merits: [
+          'Discovered the dense positively charged atomic nucleus (r ≈ 10⁻¹⁵ m)',
+          'Accurately derived the differential hyperbolic Coulomb scattering formula'
+        ],
+        demerits: [
+          'Accelerating orbiting electrons radiate continuously and spiral into the nucleus',
+          'Continuous radiation would produce a continuous rainbow spectrum instead of sharp lines'
+        ]
+      },
+      bohr: {
+        id: 'bohr', order: 4, year: '1913', name: 'Niels Bohr',
+        title: 'Quantized Planetary Orbits',
+        summary: 'Electrons revolve around the positive nucleus in discrete stationary circular shells (n = 1, 2, 3...) with quantized angular momentum (L = nh/2π).',
+        reaction: 'Incoming photons or energetic particles transfer ΔE to jump the electron to higher shells; nuclear Coulomb repulsion still deflects passing ions.',
+        legendItems: [
+          { color: '#EF4444', label: 'Central Nucleus (+Ze)' },
+          { color: '#38BDF8', label: 'Quantized Electron (e⁻)' },
+          { color: '#A3E635', label: 'Stationary Shell (n = 1..6)' }
+        ],
+        merits: [
+          'Explained atomic stability and prevented classical spiral collapse',
+          'Accurately calculated Rydberg wavelengths for Hydrogen (Lyman, Balmer, Paschen)'
+        ],
+        demerits: [
+          'Fails to predict spectra of multi-electron atoms beyond single-electron species',
+          'Cannot explain fine structure doublet lines or Zeeman/Stark splitting'
+        ]
+      },
+      schrodinger: {
+        id: 'schrodinger', order: 5, year: '1926', name: 'Erwin Schrödinger',
+        title: 'Quantum Mechanical Cloud (|ψ|²)',
+        summary: 'Electrons exist as 3D standing matter-waves described by quantum numbers (n, l, m_l, m_s) and probability density orbitals (1s, 2s, 2p, 3d).',
+        reaction: 'Charged projectiles experience screened Coulomb repulsion from the central nucleus and surrounding 3D quantum orbital density cloud.',
+        legendItems: [
+          { color: '#EF4444', label: 'Central Nucleus (+Ze)' },
+          { color: '#38BDF8', label: 'Orbital Lobe +ψ (e⁻ Cloud)' },
+          { color: '#A855F7', label: 'Orbital Phase -ψ (Nodal Lobe)' }
+        ],
+        merits: [
+          'Accurately models multi-electron atoms, 3D orbital shapes (s, p, d, f), and chemical bonds',
+          'Forms the rigorous mathematical foundation of modern quantum chemistry'
+        ],
+        demerits: [
+          'Exact analytical solutions of Ĥψ = Eψ are only possible for single-electron systems',
+          'Non-relativistic wave equation requires Dirac’s extension to naturally include spin'
+        ]
+      }
+    };
+
+    const SCHRODINGER_ORBITALS = [
+      { id: '1s', label: '1s Orbital', qNums: '(n=1, l=0, m_l=0)' },
+      { id: '2s', label: '2s Orbital', qNums: '(n=2, l=0, m_l=0)' },
+      { id: '2p', label: '2p_z Orbital', qNums: '(n=2, l=1, m_l=0)' },
+      { id: '3d', label: '3d_xz Orbital', qNums: '(n=3, l=2, m_l=±1)' }
+    ];
+
+    const BOHR_RADII = [0, 26, 46, 66, 86, 106, 126];
+    const HYDROGEN_TRANSITIONS = [
+      { from: 2, to: 1, nm: 122, color: '#A855F7' },
+      { from: 3, to: 1, nm: 103, color: '#C084FC' },
+      { from: 3, to: 2, nm: 656, color: '#EF4444' },
+      { from: 4, to: 2, nm: 486, color: '#06B6D4' },
+      { from: 5, to: 2, nm: 434, color: '#3B82F6' },
+      { from: 6, to: 2, nm: 410, color: '#8B5CF6' }
+    ];
+
+    const ELEMENTS_DB = [
+      { z: 1, sym: 'H', name: 'Hydrogen', stableN: 0, shells: [1] },
+      { z: 2, sym: 'He', name: 'Helium', stableN: 2, shells: [2] },
+      { z: 3, sym: 'Li', name: 'Lithium', stableN: 4, shells: [2, 1] },
+      { z: 4, sym: 'Be', name: 'Beryllium', stableN: 5, shells: [2, 2] },
+      { z: 5, sym: 'B', name: 'Boron', stableN: 6, shells: [2, 3] },
+      { z: 6, sym: 'C', name: 'Carbon', stableN: 6, shells: [2, 4] },
+      { z: 7, sym: 'N', name: 'Nitrogen', stableN: 7, shells: [2, 5] },
+      { z: 8, sym: 'O', name: 'Oxygen', stableN: 8, shells: [2, 6] },
+      { z: 9, sym: 'F', name: 'Fluorine', stableN: 10, shells: [2, 7] },
+      { z: 10, sym: 'Ne', name: 'Neon', stableN: 10, shells: [2, 8] },
+      { z: 11, sym: 'Na', name: 'Sodium', stableN: 12, shells: [2, 8, 1] },
+      { z: 12, sym: 'Mg', name: 'Magnesium', stableN: 12, shells: [2, 8, 2] },
+      { z: 13, sym: 'Al', name: 'Aluminium', stableN: 14, shells: [2, 8, 3] },
+      { z: 14, sym: 'Si', name: 'Silicon', stableN: 14, shells: [2, 8, 4] },
+      { z: 15, sym: 'P', name: 'Phosphorus', stableN: 16, shells: [2, 8, 5] },
+      { z: 16, sym: 'S', name: 'Sulfur', stableN: 16, shells: [2, 8, 6] },
+      { z: 17, sym: 'Cl', name: 'Chlorine', stableN: 18, shells: [2, 8, 7] },
+      { z: 18, sym: 'Ar', name: 'Argon', stableN: 22, shells: [2, 8, 8] },
+      { z: 19, sym: 'K', name: 'Potassium', stableN: 20, shells: [2, 8, 8, 1] },
+      { z: 20, sym: 'Ca', name: 'Calcium', stableN: 20, shells: [2, 8, 8, 2] },
+      { z: 24, sym: 'Cr', name: 'Chromium', stableN: 28, shells: [2, 8, 13, 1] },
+      { z: 29, sym: 'Cu', name: 'Copper', stableN: 34, shells: [2, 8, 18, 1] }
+    ];
+
+    /* ============================================================================
+       2. GLOBAL STATE
+       ============================================================================ */
+    let activeView = 'overview';
+    let currentModel = 'rutherford';
+    let beamActive = true;
+    let particleType = 'alpha';
+    let beamEnergy = 6.0;
+    let beamDensity = 2;
+    let showTraces = true;
+    let targetZ = 79;
+    let stageZoom = 1.0;
+    let autoRotate3D = true;
+    let showProtractorHUD = true;
+    let stageExpanded = false;
+    // Enhanced Schrödinger State Management
+const schrodingerState = {
+  orbIdx: 0,
+  targetOrbIdx: 0,
+  transitionProgress: 1.0,
+  relaxTimer: 0,
+  emittedPhotons: []
+};
+
+    let simRotX = 0.32, simRotY = 0.45, simDragging = false, simLastX = 0, simLastY = 0;
+    let compRotA = { x: 0.35, y: 0.4, drag: false, lx: 0, ly: 0 };
+    let compRotB = { x: 0.35, y: 0.4, drag: false, lx: 0, ly: 0 };
+
+    let thomsonAmp = 0;
+    let rutherfordSpiral = 1.0;
+    let rutherfordCollapsing = false;
+
+    const bohrState = { n: 1, displayN: 1, angle: 0, relaxTimer: 0, ripples: [], emittedPhotons: [] };
+    let particles = [];
+    let scatterStats = { total: 0, straight: 0, wide: 0, back: 0, lastAngle: 0 };
+    let logs = [{ year: '1911', text: 'ATOM LAB initialized. Weighted 90% / 9% / 1% Rutherford scattering active.' }];
+
+    let globalTime = 0;
+    let frameCount = 0;
+    let timelineScrollProgress = 0;
+
+    /* ============================================================================
+       3. 3D PROJECTION & SHARED ATOMIC RENDERER
+       ============================================================================ */
+    function projectPoint3D(x, y, z, rotX = 0.32, rotY = 0.45, fov = 420) {
+      const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
+      const x1 = x * cosY - z * sinY;
+      const z1 = z * cosY + x * sinY;
+      const cosX = Math.cos(rotX), sinX = Math.sin(rotX);
+      const y2 = y * cosX - z1 * sinX;
+      const z2 = z1 * cosX + y * sinX;
+      const scale = fov / Math.max(120, fov + z2);
+      return { x: x1 * scale, y: y2 * scale, z: z2, scale };
+    }
+
+    function drawPhotonWavePacket(ctx, x, y, angle, color, phase = 0, showGlow = true) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.beginPath();
+      for (let wx = -12; wx <= 10; wx += 2) {
+        const env = 1 - Math.abs(wx) / 14;
+        const wy = Math.sin(wx * 0.65 - phase) * 4.5 * env;
+        if (wx === -12) ctx.moveTo(wx, wy);
+        else ctx.lineTo(wx, wy);
+      }
+      ctx.strokeStyle = color || '#A855F7';
+      ctx.lineWidth = 2;
+      if (showGlow) {
+        ctx.shadowColor = color || '#A855F7';
+        ctx.shadowBlur = 8;
+      }
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(10, 0, 2.6, 0, Math.PI * 2);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawAtomVisual(ctx, modelKey, w, h, time, opts = {}) {
+      const {
+        zVal = 79,
+        bohrN = 1,
+        bohrAngle = 0,
+        scale = 1.0,
+        rotX = 0.32,
+        rotY = 0.45,
+        thomsonExcite = 0,
+        ruthSpiral = 1.0,
+        orbIdx = 0
+      } = opts;
+
+      const cx = w / 2, cy = h / 2;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(scale, scale);
+
+      if (modelKey === 'dalton') {
+        const r = 82;
+        const ambient = ctx.createRadialGradient(0, 0, r * 0.4, 0, 0, r * 1.35);
+        ambient.addColorStop(0, 'rgba(168, 85, 247, 0.25)');
+        ambient.addColorStop(1, 'rgba(168, 85, 247, 0)');
+        ctx.fillStyle = ambient;
+        ctx.beginPath(); ctx.arc(0, 0, r * 1.35, 0, Math.PI * 2); ctx.fill();
+
+        const grad = ctx.createRadialGradient(-26, -26, 8, 0, 0, r);
+        grad.addColorStop(0, '#F3E8FF');
+        grad.addColorStop(0.28, '#C084FC');
+        grad.addColorStop(0.7, '#7E22CE');
+        grad.addColorStop(1, '#3B0764');
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fillStyle = grad; ctx.fill();
+
+        // 3D Revolving Wireframe Lines (No yellow dots)
+        ctx.save();
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.clip();
+        [-0.65, -0.32, 0, 0.32, 0.65].forEach((lat, idx) => {
+          ctx.beginPath();
+          for (let a = 0; a <= Math.PI * 2 + 0.1; a += 0.15) {
+            const pt = projectPoint3D(Math.cos(a) * Math.cos(lat) * r, Math.sin(lat) * r, Math.sin(a) * Math.cos(lat) * r, rotX, rotY);
+            if (a === 0) ctx.moveTo(pt.x, pt.y); else ctx.lineTo(pt.x, pt.y);
+          }
+          ctx.strokeStyle = idx === 2 ? 'rgba(243, 232, 255, 0.48)' : 'rgba(243, 232, 255, 0.28)';
+          ctx.lineWidth = idx === 2 ? 1.5 : 1.1;
+          ctx.stroke();
+        });
+        for (let m = 0; m < 6; m++) {
+          const lon = (m * Math.PI) / 6;
+          ctx.beginPath();
+          for (let a = 0; a <= Math.PI * 2 + 0.1; a += 0.15) {
+            const pt = projectPoint3D(Math.sin(a) * Math.cos(lon) * r, Math.cos(a) * r, Math.sin(a) * Math.sin(lon) * r, rotX, rotY);
+            if (a === 0) ctx.moveTo(pt.x, pt.y); else ctx.lineTo(pt.x, pt.y);
+          }
+          ctx.strokeStyle = 'rgba(243, 232, 255, 0.32)';
+          ctx.lineWidth = 1.1;
+          ctx.stroke();
+        }
+        ctx.restore();
+      } else if (modelKey === 'thomson') {
+        const r = 88;
+        const soupGrad = ctx.createRadialGradient(-20, -20, 12, 0, 0, r);
+        soupGrad.addColorStop(0, 'rgba(251, 113, 133, 0.5)');
+        soupGrad.addColorStop(0.65, 'rgba(225, 29, 72, 0.38)');
+        soupGrad.addColorStop(1, 'rgba(136, 19, 55, 0.6)');
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fillStyle = soupGrad; ctx.fill();
+        ctx.strokeStyle = 'rgba(251, 113, 133, 0.5)'; ctx.lineWidth = 1.8; ctx.stroke();
+
+        const plums3D = [
+          [42, 0, 0], [-42, 0, 0], [0, 42, 0], [0, -42, 0],
+          [0, 0, 42], [0, 0, -42], [28, 28, 22], [-28, -28, 22],
+          [-28, 28, -22], [28, -28, -22]
+        ];
+        const projected = plums3D.map(([bx, by, bz], idx) => {
+          const vib = (1.8 + thomsonExcite * 10) * Math.sin(time * (4 + thomsonExcite * 8) + idx);
+          return projectPoint3D(bx + vib, by - vib * 0.6, bz, rotX, rotY);
+        }).sort((a, b) => a.z - b.z);
+
+        projected.forEach((p) => {
+          const pr = 7.5 * p.scale;
+          ctx.beginPath(); ctx.arc(p.x, p.y, pr, 0, Math.PI * 2);
+          ctx.fillStyle = '#38BDF8'; ctx.shadowColor = '#38BDF8'; ctx.shadowBlur = 8; ctx.fill(); ctx.shadowBlur = 0;
+          ctx.fillStyle = '#FFFFFF'; ctx.font = `bold ${Math.round(9 * p.scale)}px monospace`;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('−', p.x, p.y);
+        });
+      } else if (modelKey === 'rutherford') {
+        const orbits3D = [
+          { radius: 108, rotA: 0.95, rotB: 0.0, speed: 2.3, phase: 0, color: '#38BDF8' },
+          { radius: 108, rotA: -0.95, rotB: 1.05, speed: -2.1, phase: 1.6, color: '#A3E635' },
+          { radius: 108, rotA: 1.15, rotB: 2.1, speed: 2.5, phase: 3.1, color: '#38BDF8' },
+          { radius: 108, rotA: 0.35, rotB: 1.57, speed: -2.4, phase: 4.7, color: '#60A5FA' }
+        ];
+        const getOrbitPt = (orb, theta) => {
+          const r = orb.radius * ruthSpiral;
+          const x0 = Math.cos(theta) * r, y0 = Math.sin(theta) * r;
+          const y1 = y0 * Math.cos(orb.rotA), z1 = y0 * Math.sin(orb.rotA);
+          const x2 = x0 * Math.cos(orb.rotB) - z1 * Math.sin(orb.rotB);
+          const y2 = y1 * Math.cos(orb.rotB * 0.5) + z1 * Math.sin(orb.rotB * 0.5);
+          const z2 = x0 * Math.sin(orb.rotB) + z1 * Math.cos(orb.rotB);
+          return projectPoint3D(x2, y2, z2, rotX, rotY);
+        };
+
+        orbits3D.forEach((orb) => {
+          ctx.beginPath();
+          for (let a = 0; a <= Math.PI * 2 + 0.1; a += 0.12) {
+            const pt = getOrbitPt(orb, a);
+            if (a === 0) ctx.moveTo(pt.x, pt.y); else ctx.lineTo(pt.x, pt.y);
+          }
+          ctx.strokeStyle = 'rgba(56, 189, 248, 0.34)'; ctx.lineWidth = 1.45; ctx.stroke();
+        });
+
+        const nucR = 10 + (zVal - 50) * 0.07;
+        const nGrad = ctx.createRadialGradient(-3, -3, 1, 0, 0, nucR);
+        nGrad.addColorStop(0, '#FEF08A'); nGrad.addColorStop(0.45, '#F59E0B'); nGrad.addColorStop(1, '#B45309');
+        ctx.beginPath(); ctx.arc(0, 0, nucR, 0, Math.PI * 2);
+        ctx.fillStyle = nGrad; ctx.shadowColor = '#F59E0B'; ctx.shadowBlur = 18; ctx.fill(); ctx.shadowBlur = 0;
+
+        orbits3D.forEach((orb) => {
+          const ePt = getOrbitPt(orb, time * orb.speed + orb.phase);
+          ctx.beginPath(); ctx.arc(ePt.x, ePt.y, 5.2 * ePt.scale, 0, Math.PI * 2);
+          ctx.fillStyle = orb.color; ctx.shadowColor = orb.color; ctx.shadowBlur = 11; ctx.fill(); ctx.shadowBlur = 0;
+        });
+      } else if (modelKey === 'bohr') {
+        const wx = rotX + Math.sin(time * 0.7) * 0.12;
+        const wy = rotY + Math.cos(time * 0.5) * 0.12;
+        for (let s = 1; s <= 6; s++) {
+          const r = BOHR_RADII[s];
+          const isCur = Math.round(bohrN) === s;
+          const tilt = (s % 2 === 0 ? 1 : -1) * 0.16;
+          ctx.beginPath();
+          for (let a = 0; a <= Math.PI * 2 + 0.1; a += 0.12) {
+            const pt = projectPoint3D(Math.cos(a) * r, Math.sin(a) * r * Math.cos(tilt), Math.sin(a) * r * Math.sin(tilt), wx, wy);
+            if (a === 0) ctx.moveTo(pt.x, pt.y); else ctx.lineTo(pt.x, pt.y);
+          }
+          ctx.setLineDash([5, 4]);
+          ctx.strokeStyle = isCur ? 'rgba(163, 230, 53, 0.9)' : 'rgba(148, 163, 184, 0.28)';
+          ctx.lineWidth = isCur ? 2.0 : 1.15; ctx.stroke(); ctx.setLineDash([]);
+
+          const lPt = projectPoint3D(r + 10, 0, 0, wx, wy);
+          ctx.fillStyle = isCur ? '#A3E635' : 'rgba(148, 163, 184, 0.6)';
+          ctx.font = isCur ? 'bold 9.5px "JetBrains Mono", monospace' : '8.5px "JetBrains Mono", monospace';
+          ctx.fillText(`n=${s}`, lPt.x, lPt.y);
+        }
+
+        ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2);
+        ctx.fillStyle = '#EF4444'; ctx.shadowColor = '#EF4444'; ctx.shadowBlur = 14; ctx.fill(); ctx.shadowBlur = 0;
+
+        const lowIdx = Math.max(1, Math.min(6, Math.floor(bohrN)));
+        const highIdx = Math.max(1, Math.min(6, Math.ceil(bohrN)));
+        const frac = bohrN - lowIdx;
+        const interpR = BOHR_RADII[lowIdx] * (1 - frac) + BOHR_RADII[highIdx] * frac;
+        const actTilt = (Math.round(bohrN) % 2 === 0 ? 1 : -1) * 0.16;
+        const ePt = projectPoint3D(Math.cos(bohrAngle) * interpR, Math.sin(bohrAngle) * interpR * Math.cos(actTilt), Math.sin(bohrAngle) * interpR * Math.sin(actTilt), wx, wy);
+        ctx.beginPath(); ctx.arc(ePt.x, ePt.y, 6.2 * ePt.scale, 0, Math.PI * 2);
+        ctx.fillStyle = '#38BDF8'; ctx.shadowColor = '#38BDF8'; ctx.shadowBlur = 14; ctx.fill(); ctx.shadowBlur = 0;
+      } else if (modelKey === 'schrodinger') {
+        const pulse = Math.sin(time * 2.4) * 6;
+        const cloud = ctx.createRadialGradient(0, 0, 4, 0, 0, 118 + pulse);
+        cloud.addColorStop(0, 'rgba(56, 189, 248, 0.55)');
+        cloud.addColorStop(0.4, 'rgba(14, 165, 233, 0.22)');
+        cloud.addColorStop(0.75, 'rgba(168, 85, 247, 0.12)');
+        cloud.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = cloud; ctx.beginPath(); ctx.arc(0, 0, 124, 0, Math.PI * 2); ctx.fill();
+
+        const count = 95;
+        const tProg = opts.sProg !== undefined ? opts.sProg : 1.0;
+        const curIdx = opts.orbIdx || 0;
+        const tgtIdx = opts.tgtOrbIdx !== undefined ? opts.tgtOrbIdx : curIdx;
+
+        // Smooth easing function for transitions
+        const ease = tProg < 0.5 ? 2 * tProg * tProg : 1 - Math.pow(-2 * tProg + 2, 2) / 2;
+
+        const getOrbitalProps = (oIdx, i, a1, a2) => {
+          let r = 22 + ((i * 19) % 85);
+          let c = '#38BDF8';
+          if (oIdx === 1) { // 2s
+            r = i % 2 === 0 ? 24 + (i % 18) : 72 + (i % 28);
+          } else if (oIdx === 2) { // 2p
+            const cosT = Math.cos(a2);
+            r = 95 * Math.abs(cosT);
+            c = cosT >= 0 ? '#38BDF8' : '#C084FC';
+          } else if (oIdx === 3) { // 3d
+            const lobe = Math.sin(2 * a2) * Math.cos(a1);
+            r = 105 * Math.abs(lobe);
+            c = lobe >= 0 ? '#38BDF8' : '#C084FC';
+          }
+          return { r, c };
+        };
+
+        for (let i = 0; i < count; i++) {
+          const a1 = i * 2.39996 + time * 0.4;
+          const a2 = (i / count) * Math.PI;
+
+          const p1 = getOrbitalProps(curIdx, i, a1, a2);
+          const p2 = getOrbitalProps(tgtIdx, i, a1, a2);
+
+          // Interpolate shape parameters
+          const rad = p1.r + (p2.r - p1.r) * ease;
+          const col = ease > 0.5 ? p2.c : p1.c; 
+
+          const pt = projectPoint3D(Math.sin(a2) * Math.cos(a1) * rad, Math.cos(a2) * rad, Math.sin(a2) * Math.sin(a1) * rad, rotX, rotY);
+          ctx.beginPath(); ctx.arc(pt.x, pt.y, 2.1 * pt.scale, 0, Math.PI * 2);
+          ctx.fillStyle = col; ctx.globalAlpha = 0.72; ctx.fill();
+        }
+        ctx.globalAlpha = 1.0;
+        ctx.beginPath(); ctx.arc(0, 0, 6.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#EF4444'; ctx.shadowColor = '#EF4444'; ctx.shadowBlur = 12; ctx.fill(); ctx.shadowBlur = 0;
+      }
+      ctx.restore();
+    }
+
+    /* ============================================================================
+       4. NAVIGATION & UI SYNCHRONIZATION
+       ============================================================================ */
+    function switchView(viewId) {
+      activeView = viewId;
+      document.querySelectorAll('.view-section').forEach((sec) => sec.classList.remove('active'));
+      const target = document.getElementById(`view-${viewId}`);
+      if (target) target.classList.add('active');
+
+      document.querySelectorAll('[data-nav]').forEach((btn) => {
+        btn.classList.toggle('active', btn.getAttribute('data-nav') === viewId);
+      });
+    }
+
+    function toggleMobileMenu(force) {
+      const drawer = document.getElementById('mobileMenuDrawer');
+      if (!drawer) return;
+      if (typeof force === 'boolean') {
+        drawer.classList.toggle('hidden', !force);
+      } else {
+        drawer.classList.toggle('hidden');
+      }
+    }
+
+    function selectSimModel(modelId) {
+      currentModel = modelId;
+      particles = [];
+      const m = ATOMIC_MODELS[modelId];
+      pushLog(`Switched to ${m.year} ${m.name} (${m.title}).`);
+      syncSimulationUI();
+    }
+
+    function syncSimulationUI() {
+      const m = ATOMIC_MODELS[currentModel];
+      const era = ERA_THEMES[currentModel] || ERA_THEMES.rutherford;
+
+      document.documentElement.style.setProperty('--bg-main', era.bgMain);
+      document.documentElement.style.setProperty('--bg-panel', era.bgPanel);
+      document.documentElement.style.setProperty('--bg-card', era.bgCard);
+      document.documentElement.style.setProperty('--accent', era.accent);
+      document.documentElement.style.setProperty('--accent-soft', era.accentSoft);
+      document.documentElement.style.setProperty('--border', era.border);
+      document.documentElement.style.setProperty('--canvas-bg', era.canvasBg);
+
+      document.getElementById('stageEraBadge').textContent = era.eraBadge;
+      document.getElementById('stageModelTitle').textContent = `${m.year} • ${m.name}`;
+      let sub = m.title;
+      if (currentModel === 'bohr') sub += ` (Shell n = ${bohrState.n})`;
+      if (currentModel === 'schrodinger') sub += ` (${SCHRODINGER_ORBITALS[schrodingerState.targetOrbIdx].label})`;
+      document.getElementById('stageModelSubtitle').textContent = sub;
+
+      document.getElementById('modelOrderBadge').textContent = `${m.order} / 5`;
+      document.getElementById('takeawayPostulate').textContent = m.summary;
+      document.getElementById('takeawayReaction').textContent = m.reaction;
+
+      document.getElementById('rutherfordZControl').style.display = currentModel === 'rutherford' ? 'block' : 'none';
+      const exBtn = document.getElementById('exciteElectronBtn');
+      if (currentModel === 'dalton') {
+        exBtn.style.display = 'none';
+      } else {
+        exBtn.style.display = 'flex';
+        exBtn.textContent = currentModel === 'bohr'
+          ? `✨ Excite Electron (n = ${bohrState.n})`
+          : currentModel === 'schrodinger'
+          ? `✨ Excite to ${SCHRODINGER_ORBITALS[(schrodingerState.targetOrbIdx + 1) % SCHRODINGER_ORBITALS.length].id}`
+          : '✨ Excite Electron State';
+      }
+
+      // Legend
+      const legBox = document.getElementById('stageLegendBox');
+      legBox.innerHTML = m.legendItems.map((it) => `
+        <div class="flex items-center gap-1.5 text-[11px] text-slate-300 font-medium">
+          <span class="w-2 h-2 rounded-full" style="background-color:${it.color}"></span>
+          <span>${it.label}</span>
+        </div>
+      `).join('');
+
+      // Model Buttons List
+      const listEl = document.getElementById('modelButtonsList');
+      listEl.innerHTML = Object.values(ATOMIC_MODELS).map((mod) => {
+        const isSel = mod.id === currentModel;
+        return `
+          <button onclick="selectSimModel('${mod.id}')" class="w-full text-left px-3 py-2.5 rounded-xl border flex items-center justify-between transition cursor-pointer"
+            style="background-color: ${isSel ? era.accentSoft : era.bgPanel}; border-color: ${isSel ? era.accent : 'rgba(255,255,255,0.07)'}">
+            <div>
+              <div class="text-xs font-bold" style="color: ${isSel ? era.accent : '#F8FAFC'}">${mod.order}. ${mod.name} (${mod.year})</div>
+              <div class="text-[11px] text-slate-400 mt-0.5">${mod.title}</div>
+            </div>
+            <span class="text-xs font-bold" style="color: ${isSel ? era.accent : '#64748B'}">→</span>
+          </button>
+        `;
+      }).join('');
+
+      renderLogs();
+    }
+
+    function pushLog(text) {
+      const year = ATOMIC_MODELS[currentModel]?.year || 'LAB';
+      logs.push({ year, text });
+      if (logs.length > 15) logs.shift();
+      renderLogs();
+    }
+
+    function clearLogs() {
+      logs = [{ year: 'LAB', text: 'Telemetry log cleared.' }];
+      renderLogs();
+    }
+
+    function renderLogs() {
+      const el = document.getElementById('telemetryLogList');
+      if (!el) return;
+      const era = ERA_THEMES[currentModel] || ERA_THEMES.rutherford;
+      el.innerHTML = logs.map((l) => `
+        <div class="border-l-2 pl-2 leading-snug" style="border-color: ${era.accent}">
+          <span class="font-bold mr-1.5" style="color: ${era.accent}">[${l.year}]</span>
+          <span>${l.text}</span>
+        </div>
+      `).join('');
+      el.scrollTop = el.scrollHeight;
+    }
+
+    /* ============================================================================
+       5. SIMULATION CONTROLS & PARTICLE ENGINE
+       ============================================================================ */
+    function toggleBeam() {
+      beamActive = !beamActive;
+      const btn = document.getElementById('toggleBeamBtn');
+      const badge = document.getElementById('beamStatusBadge');
+      btn.textContent = beamActive ? 'Pause Beam' : 'Fire Beam';
+      badge.textContent = beamActive ? 'ACTIVE' : 'PAUSED';
+    }
+
+    function setParticleType(pt) {
+      particleType = pt;
+      particles = [];
+      document.querySelectorAll('.ptype-btn').forEach((b) => {
+        const active = b.getAttribute('data-ptype') === pt;
+        b.className = `ptype-btn py-2 px-1 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-0.5 ${
+          active ? 'bg-[#A3E635]/15 border-[#A3E635] text-[#A3E635]' : 'bg-[#0B0F17] border-white/10 text-slate-400'
+        }`;
+      });
+    }
+
+    function updateBeamEnergy(val) {
+      beamEnergy = parseFloat(val);
+      document.getElementById('beamEnergyLabel').textContent = `${beamEnergy.toFixed(1)} MeV`;
+    }
+
+    function updateBeamDensity(val) {
+      beamDensity = parseInt(val, 10);
+      document.getElementById('beamDensityLabel').textContent = beamDensity === 1 ? 'Low' : beamDensity === 2 ? 'Medium' : 'High';
+    }
+
+    function updateTargetZ(val) {
+      targetZ = parseInt(val, 10);
+      document.getElementById('targetZLabel').textContent = `Z = ${targetZ}${targetZ === 79 ? ' (Au)' : ''}`;
+    }
+
+    function triggerManualExcitation() {
+      if (currentModel === 'dalton') return;
+      if (currentModel === 'thomson') {
+        thomsonAmp = 1.0;
+        pushLog('1904 Thomson: Embedded electrons oscillating harmonically.');
+      } else if (currentModel === 'rutherford') {
+        rutherfordCollapsing = true;
+        rutherfordSpiral = 1.0;
+        pushLog('1911 Rutherford: Classical electron spiraling inward due to radiation loss.');
+      } else if (currentModel === 'bohr') {
+        bohrState.n = bohrState.n >= 6 ? 2 : bohrState.n + 1;
+        bohrState.relaxTimer = 95;
+        bohrState.ripples.push({ r: BOHR_RADII[bohrState.n] * stageZoom, color: '#A3E635', alpha: 1.0 });
+        pushLog(`1913 Bohr: Electron excited to quantized shell n = ${bohrState.n}.`);
+      } else if (currentModel === 'schrodinger') {
+        if (schrodingerState.transitionProgress < 1.0) return; // Prevent spamming during animation
+        schrodingerState.targetOrbIdx = (schrodingerState.orbIdx + 1) % SCHRODINGER_ORBITALS.length;
+        schrodingerState.transitionProgress = 0.0;
+        schrodingerState.relaxTimer = schrodingerState.targetOrbIdx > 0 ? 150 : 0;
+        const orb = SCHRODINGER_ORBITALS[schrodingerState.targetOrbIdx];
+        pushLog(`1926 Schrödinger: Absorbed energy. Transitioning to ${orb.label} ${orb.qNums}.`);
+      }
+      syncSimulationUI();
+    }
+
+    function toggleAutoSpin() {
+      autoRotate3D = !autoRotate3D;
+      const btn = document.getElementById('btnAutoSpin');
+      btn.textContent = `3D Spin: ${autoRotate3D ? 'ON' : 'OFF'}`;
+    }
+
+    function toggleAnglesHud() {
+      showProtractorHUD = !showProtractorHUD;
+      document.getElementById('anglesHudBox').style.display = showProtractorHUD ? 'block' : 'none';
+    }
+
+    function adjustZoom(delta) {
+      stageZoom = Math.max(0.6, Math.min(2.2, Number((stageZoom + delta).toFixed(2))));
+      document.getElementById('zoomPctLabel').textContent = `${Math.round(stageZoom * 100)}%`;
+    }
+
+    function resetZoomAndRot() {
+      stageZoom = 1.0;
+      simRotX = 0.32;
+      simRotY = 0.45;
+      document.getElementById('zoomPctLabel').textContent = '100%';
+    }
+
+    function toggleExpandPanels() {
+      stageExpanded = !stageExpanded;
+      document.getElementById('simLeftSidebar').style.display = stageExpanded ? 'none' : 'flex';
+      document.getElementById('simRightSidebar').style.display = stageExpanded ? 'none' : 'flex';
+      document.getElementById('btnExpandStage').textContent = stageExpanded ? 'Show Panels' : 'Expand Stage';
+    }
+
+    function toggleStageFullscreen() {
+      const wrap = document.getElementById('simStageWrap');
+      if (!document.fullscreenElement) {
+        if (wrap.requestFullscreen) wrap.requestFullscreen();
+      } else if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+
+    function resetSimParticles() {
+      particles = [];
+      scatterStats = { total: 0, straight: 0, wide: 0, back: 0, lastAngle: 0 };
+      updateScatterHUD();
+    }
+
+    function updateScatterHUD() {
+      const sPct = scatterStats.total > 0 ? ((scatterStats.straight / scatterStats.total) * 100).toFixed(1) : '90.0';
+      const wPct = scatterStats.total > 0 ? ((scatterStats.wide / scatterStats.total) * 100).toFixed(1) : '9.0';
+      const bPct = scatterStats.total > 0 ? ((scatterStats.back / scatterStats.total) * 100).toFixed(1) : '1.0';
+      document.getElementById('lastAngleBadge').textContent = `θ = ${scatterStats.lastAngle.toFixed(1)}°`;
+      document.getElementById('pctStraight').textContent = `${sPct}%`;
+      document.getElementById('pctWide').textContent = `${wPct}%`;
+      document.getElementById('pctBack').textContent = `${bPct}%`;
+      document.getElementById('barStraight').style.width = `${sPct}%`;
+      document.getElementById('barWide').style.width = `${Math.min(100, parseFloat(wPct) * 3)}%`;
+      document.getElementById('barBack').style.width = `${Math.min(100, parseFloat(bPct) * 8)}%`;
+    }
+
+    function spawnSingleParticle(h) {
+      const cy = h / 2;
+      const roll = Math.random();
+      const sign = Math.random() < 0.5 ? 1 : -1;
+      let impactOffset;
+      if (currentModel === 'rutherford' || currentModel === 'bohr' || currentModel === 'schrodinger') {
+        if (roll < 0.90) impactOffset = sign * (52 + Math.random() * Math.min(85, h * 0.32));
+        else if (roll < 0.99) impactOffset = sign * (14 + Math.random() * 28);
+        else impactOffset = (Math.random() - 0.5) * 6;
+      } else {
+        impactOffset = (Math.random() - 0.5) * 165;
+      }
+
+      const startY = cy + impactOffset;
+      const baseSpeed = 2.8 + beamEnergy * 0.45;
+      const spec = HYDROGEN_TRANSITIONS[Math.floor(Math.random() * HYDROGEN_TRANSITIONS.length)];
+      const colorMap = { alpha: '#F59E0B', proton: '#A3E635', neutron: '#94A3B8', electron: '#38BDF8', photon: spec.color };
+      const chargeMap = { alpha: 2, proton: 1, neutron: 0, electron: -1, photon: 0 };
+      const massMap = { alpha: 4, proton: 1, neutron: 1, electron: 0.35, photon: 0 };
+
+      particles.push({
+        x: 16, y: startY,
+        regime: roll < 0.9 ? 'straight' : roll < 0.99 ? 'wide' : 'back',
+        vx: baseSpeed, vy: 0,
+        type: particleType,
+        color: colorMap[particleType],
+        charge: chargeMap[particleType],
+        mass: massMap[particleType],
+        targetN: spec.from,
+        phase: Math.random() * Math.PI * 2,
+        bounced: false, counted: false, absorbed: false,
+        history: [{ x: 16, y: startY }]
+      });
+    }
+
+    /* ============================================================================
+       6. COMPARE MODELS & TIMELINE VIEWS
+       ============================================================================ */
+    function updateComparisonView() {
+      const keyA = document.getElementById('compSelectA').value;
+      const keyB = document.getElementById('compSelectB').value;
+      const dA = ATOMIC_MODELS[keyA], dB = ATOMIC_MODELS[keyB];
+
+      document.getElementById('compBadgeA').textContent = `MODEL A • ${dA.year}`;
+      document.getElementById('compTitleA').textContent = `${dA.name} — ${dA.title}`;
+      document.getElementById('compBadgeB').textContent = `MODEL B • ${dB.year}`;
+      document.getElementById('compTitleB').textContent = `${dB.name} — ${dB.title}`;
+
+      const renderDetails = (d) => `
+        <div class="p-3 rounded-lg border border-white/[0.08] bg-[#111827]">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Core Postulate</div>
+          <p class="text-xs leading-relaxed text-white">${d.summary}</p>
+        </div>
+        <div class="p-3 rounded-lg border border-white/[0.08] bg-[#111827]">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-sky-400 mb-1">Particle Beam Reaction</div>
+          <p class="text-xs leading-relaxed text-white">${d.reaction}</p>
+        </div>
+        <div class="p-3 rounded-lg border-l-4 border-emerald-400 bg-emerald-400/10">
+          <div class="text-xs font-bold text-emerald-400 mb-1.5">✔ Scientific Merits</div>
+          <ul class="space-y-1 text-xs list-disc list-inside text-white">
+            ${d.merits.map((m) => `<li>${m}</li>`).join('')}
+          </ul>
+        </div>
+        <div class="p-3 rounded-lg border-l-4 border-rose-400 bg-rose-400/10">
+          <div class="text-xs font-bold text-rose-400 mb-1.5">⚠ Demerits &amp; Structural Limitations</div>
+          <ul class="space-y-1 text-xs list-disc list-inside text-white">
+            ${d.demerits.map((dm) => `<li>${dm}</li>`).join('')}
+          </ul>
+        </div>
+      `;
+      document.getElementById('compDetailsA').innerHTML = renderDetails(dA);
+      document.getElementById('compDetailsB').innerHTML = renderDetails(dB);
+    }
+
+    function initTimelineCards() {
+      const container = document.getElementById('timelineCardsList');
+      container.innerHTML = Object.values(ATOMIC_MODELS).map((m) => `
+        <div class="p-6 rounded-2xl border border-white/[0.08] bg-[#0B101B] space-y-4 shadow-xl">
+          <div class="flex items-center justify-between">
+            <span class="font-mono text-sm font-extrabold px-3 py-1 rounded bg-[#A3E635]/15 text-[#A3E635]">
+              ${m.year} • Model ${m.order} of 5
+            </span>
+            <button onclick="selectSimModel('${m.id}'); switchView('sim');" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#A3E635] text-slate-950 cursor-pointer">
+              Open in Lab →
+            </button>
+          </div>
+          <h3 class="text-xl font-extrabold text-white">${m.order}. ${m.name} — ${m.title}</h3>
+          <p class="text-xs sm:text-sm leading-relaxed text-slate-300">${m.summary}</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <div class="p-3 rounded-xl border-l-4 border-emerald-400 bg-emerald-400/10">
+              <div class="text-xs font-bold text-emerald-400 mb-1">Scientific Merits</div>
+              <ul class="text-xs space-y-1 list-disc list-inside text-white">
+                ${m.merits.map((mer) => `<li>${mer}</li>`).join('')}
+              </ul>
+            </div>
+            <div class="p-3 rounded-xl border-l-4 border-rose-400 bg-rose-400/10">
+              <div class="text-xs font-bold text-rose-400 mb-1">Key Limitations</div>
+              <ul class="text-xs space-y-1 list-disc list-inside text-white">
+                ${m.demerits.map((dem) => `<li>${dem}</li>`).join('')}
+              </ul>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function handleTimelineScroll(el) {
+      const maxScroll = Math.max(1, el.scrollHeight - el.clientHeight);
+      timelineScrollProgress = Math.max(0, Math.min(0.999, el.scrollTop / maxScroll));
+      document.getElementById('timelineProgressBar').style.width = `${timelineScrollProgress * 100}%`;
+      const modelsArr = Object.values(ATOMIC_MODELS);
+      const idx = Math.min(modelsArr.length - 1, Math.floor(timelineScrollProgress * modelsArr.length));
+      const activeM = modelsArr[idx];
+      document.getElementById('timelineStageBadge').textContent = `Scroll Progress: ${Math.round(timelineScrollProgress * 100)}% • ${activeM.year}`;
+      document.getElementById('timelineStageTitle').textContent = `${activeM.name} — ${activeM.title}`;
+    }
+
+    /* ============================================================================
+       7. GAME CENTRE LOGIC (ATOM ARCHITECT & QUANTUM DETECTIVE)
+       ============================================================================ */
+    let buildDiff = 'easy';
+    let buildSeed = 1;
+    let buildScore = 0;
+    let buildStreak = 0;
+    let buildP = 1, buildN = 0, buildE = 1;
+    let currentBuildChallenge = null;
+
+    let mysteryDiff = 'easy';
+    let mysterySeed = 1;
+    let mysteryScore = 0;
+    let currentMystery = null;
+    let mysteryRevealed = [true, false, false];
+    let mysterySelected = null;
+
+    function switchGameTab(tab) {
+      const isBuild = tab === 'build';
+      document.getElementById('gameBuildContainer').classList.toggle('hidden', !isBuild);
+      document.getElementById('gameMysteryContainer').classList.toggle('hidden', isBuild);
+      document.getElementById('tabBtnBuild').className = `px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+        isBuild ? 'bg-[#A3E635]/15 border border-[#A3E635]/40 text-[#D9F99D]' : 'border border-white/10 text-slate-400'
+      }`;
+      document.getElementById('tabBtnMystery').className = `px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+        !isBuild ? 'bg-[#A3E635]/15 border border-[#A3E635]/40 text-[#D9F99D]' : 'border border-white/10 text-slate-400'
+      }`;
+    }
+
+    
+    function generateBuildChallenge(diff, seed) {
+      if (diff === 'easy') {
+        const el = ELEMENTS_DB[Math.floor(Math.random() * 18)]; // H to Ar
+        return {
+          title: `Tier 1 (Class 9): Neutral ${el.name} Atom`,
+          prompt: `Construct a neutral, stable ${el.name} (${el.sym}) atom with Atomic Number Z = ${el.z} and Mass Number A = ${el.z + el.stableN}.`,
+          targetZ: el.z, targetN: el.stableN, targetE: el.z,
+          hint: `For a neutral atom, Protons (Z) = Electrons (e⁻) = ${el.z}. Neutrons N = A - Z = ${el.stableN}.`,
+          explanation: `${el.name} (${el.sym}) has Z=${el.z} protons, N=${el.stableN} neutrons, and ${el.z} electrons.`
+        };
+      }
+      if (diff === 'medium') {
+        const ions = [
+          { sym: 'Mg²⁺', name: 'Magnesium Ion', z: 12, n: 12, e: 10, charge: '+2' },
+          { sym: 'O²⁻', name: 'Oxide Ion', z: 8, n: 8, e: 10, charge: '-2' },
+          { sym: 'Na⁺', name: 'Sodium Ion', z: 11, n: 12, e: 10, charge: '+1' },
+          { sym: 'Al³⁺', name: 'Aluminium Ion', z: 13, n: 14, e: 10, charge: '+3' },
+          { sym: '¹⁴C', name: 'Carbon-14 Isotope', z: 6, n: 8, e: 6, charge: '0' },
+          { sym: 'Cl⁻', name: 'Chloride Ion', z: 17, n: 18, e: 18, charge: '-1' },
+          { sym: 'K⁺', name: 'Potassium Ion', z: 19, n: 20, e: 18, charge: '+1' }
+        ];
+        const pick = ions[Math.floor(Math.random() * ions.length)];
+        return {
+          title: `Tier 2 (Ions & Isotopes): ${pick.name} (${pick.sym})`,
+          prompt: `Assemble ${pick.name} (${pick.sym}) with Mass Number A = ${pick.z + pick.n} and net charge ${pick.charge}.`,
+          targetZ: pick.z, targetN: pick.n, targetE: pick.e,
+          hint: `Atomic number Z = ${pick.z}. Adjust electrons so Z - e⁻ = ${pick.charge}.`,
+          explanation: `${pick.sym} contains Z=${pick.z} protons, N=${pick.n} neutrons, and e⁻=${pick.e} electrons.`
+        };
+      }
+      const hardPool = [
+        { sym: 'Cr', name: 'Chromium (3d⁵ 4s¹ Half-Filled)', z: 24, n: 28, e: 24, prompt: 'Construct ground-state Chromium (Cr, Z=24, A=52) exhibiting anomalous [Ar] 3d⁵ 4s¹ stability.' },
+        { sym: 'Cu', name: 'Copper (3d¹⁰ 4s¹ Fully-Filled)', z: 29, n: 34, e: 29, prompt: 'Construct ground-state Copper (Cu, Z=29, A=63) exhibiting [Ar] 3d¹⁰ 4s¹ stability.' },
+        { sym: 'N', name: 'Nitrogen (2p³ Hund’s Rule)', z: 7, n: 7, e: 7, prompt: 'Build a neutral Nitrogen-14 atom with 3 unpaired electrons in degenerate 2p orbitals.' },
+        { sym: 'Mn', name: 'Manganese (3d⁵ 4s²)', z: 25, n: 30, e: 25, prompt: 'Build ground-state Manganese (Mn, Z=25, A=55). Observe the fully paired 4s and half-filled 3d subshells.' },
+        { sym: 'Fe²⁺', name: 'Ferrous Ion (3d⁶)', z: 26, n: 30, e: 24, prompt: 'Construct the Fe²⁺ ion (Iron-56). Remember that 4s electrons are removed before 3d electrons during ionization.' }
+      ];
+      const pick = hardPool[Math.floor(Math.random() * hardPool.length)];
+      return {
+        title: `Tier 3 (Class 11 NCERT Ch. 2): ${pick.name}`,
+        prompt: pick.prompt,
+        targetZ: pick.z, targetN: pick.n, targetE: pick.e,
+        hint: `Set Z = ${pick.z}, N = ${pick.n}, and e⁻ = ${pick.e}.`,
+        explanation: `Verified! ${pick.name} has Z=${pick.z}, N=${pick.n}, and e⁻=${pick.e}.`
+      };
+    }
+
+
+    function setBuildDifficulty(diff) {
+      buildDiff = diff;
+      document.querySelectorAll('.bdiff-btn').forEach((b) => {
+        const active = b.getAttribute('data-bdiff') === diff;
+        b.className = `bdiff-btn px-3 py-1.5 rounded-lg border text-xs font-bold uppercase cursor-pointer ${
+          active ? 'bg-[#A3E635] text-slate-950 border-[#A3E635]' : 'bg-[#111827] text-white border-white/10'
+        }`;
+      });
+      nextBuildChallenge();
+    }
+
+    function nextBuildChallenge() {
+      buildSeed++;
+      currentBuildChallenge = generateBuildChallenge(buildDiff, buildSeed);
+      document.getElementById('buildChallengeTitle').textContent = currentBuildChallenge.title;
+      document.getElementById('buildChallengePrompt').textContent = currentBuildChallenge.prompt;
+      document.getElementById('buildHintBox').classList.add('hidden');
+      document.getElementById('buildFeedbackBox').classList.add('hidden');
+      updateBuildUI();
+    }
+
+    function stepBuildPart(part, delta) {
+      if (part === 'p') buildP = Math.max(1, Math.min(29, buildP + delta));
+      if (part === 'n') buildN = Math.max(0, Math.min(35, buildN + delta));
+      if (part === 'e') buildE = Math.max(0, Math.min(29, buildE + delta));
+      updateBuildUI();
+    }
+
+    function updateBuildUI() {
+      document.getElementById('valProtons').textContent = buildP;
+      document.getElementById('valNeutrons').textContent = buildN;
+      document.getElementById('valElectrons').textContent = buildE;
+      const el = ELEMENTS_DB.find((x) => x.z === buildP) || { sym: 'X' };
+      const net = buildP - buildE;
+      const chgStr = net === 0 ? '0' : net > 0 ? `${net}+` : `${Math.abs(net)}-`;
+      document.getElementById('buildSymbolDisplay').innerHTML = `<sup>${buildP + buildN}</sup><sub>${buildP}</sub>${el.sym}<sup>${chgStr}</sup>`;
+      document.getElementById('buildMassChargeDisplay').textContent = `Mass A = ${buildP + buildN} • Charge = ${net > 0 ? '+' + net : net}`;
+      document.getElementById('orbitalTotalELabel').textContent = `Total e⁻ = ${buildE}`;
+
+      // Subshell boxes
+      let rem = buildE;
+      const defs = [
+        { name: '1s', boxes: 1 }, { name: '2s', boxes: 1 }, { name: '2p', boxes: 3 },
+        { name: '3s', boxes: 1 }, { name: '3p', boxes: 3 }, { name: '4s', boxes: 1 }
+      ];
+      const html = defs.map((sub) => {
+        const cap = sub.boxes * 2;
+        const fill = Math.min(rem, cap);
+        rem -= fill;
+        let boxesHtml = '';
+        for (let b = 0; b < sub.boxes; b++) {
+          const up = fill > b ? '↑' : '';
+          const down = fill > sub.boxes + b ? '↓' : '';
+          boxesHtml += `
+            <div class="w-7 h-7 rounded border border-white/10 bg-[#0B101B] flex items-center justify-center font-mono text-xs font-extrabold">
+              <span class="text-sky-400">${up}</span><span class="text-amber-400">${down}</span>
+            </div>
+          `;
+        }
+        return `
+          <div class="p-2 rounded-lg border border-white/10 bg-[#111827] flex flex-col items-center">
+            <span class="font-mono text-[11px] font-bold text-[#A3E635] mb-1">${sub.name}<sup>${fill}</sup></span>
+            <div class="flex gap-1">${boxesHtml}</div>
+          </div>
+        `;
+      }).join('');
+      document.getElementById('subshellBoxesGrid').innerHTML = html;
+    }
+
+    function toggleBuildHint() {
+      const box = document.getElementById('buildHintBox');
+      box.textContent = `💡 ${currentBuildChallenge.hint}`;
+      box.classList.toggle('hidden');
+    }
+
+    function verifyAtomBuild() {
+      const ok = buildP === currentBuildChallenge.targetZ && buildN === currentBuildChallenge.targetN && buildE === currentBuildChallenge.targetE;
+      const fb = document.getElementById('buildFeedbackBox');
+      fb.classList.remove('hidden');
+      if (ok) {
+        const pts = buildDiff === 'easy' ? 100 : buildDiff === 'medium' ? 200 : 350;
+        buildScore += pts;
+        buildStreak++;
+        fb.className = 'p-3 rounded-lg border border-emerald-400 bg-emerald-400/15 text-xs text-white leading-relaxed';
+        fb.innerHTML = `<div class="font-bold text-emerald-400 mb-1">✔ Correct Construction (+${pts} pts)!</div>${currentBuildChallenge.explanation}`;
+      } else {
+        buildStreak = 0;
+        fb.className = 'p-3 rounded-lg border border-rose-400 bg-rose-400/15 text-xs text-white leading-relaxed';
+        fb.innerHTML = `<div class="font-bold text-rose-400 mb-1">✖ Mismatch Detected</div>You built Z=${buildP}, N=${buildN}, e⁻=${buildE}. Target requires Z=${currentBuildChallenge.targetZ}, N=${currentBuildChallenge.targetN}, e⁻=${currentBuildChallenge.targetE}.`;
+      }
+      document.getElementById('buildScoreLabel').textContent = `Score: ${buildScore}`;
+      document.getElementById('buildStreakLabel').textContent = `Streak: ${buildStreak}🔥`;
+    }
+
+    // Mystery Game
+    
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function generateMysteryCase(diff, seed) {
+      const caseId = Math.floor(Math.random() * 900) + 100;
+      let title = '', clues = [], question = '', correctOpt = '', wrongOpts = [], explanation = '';
+
+      if (diff === 'easy') {
+        const type = Math.floor(Math.random() * 2);
+        if (type === 0) {
+           const el = ELEMENTS_DB[Math.floor(Math.random() * 18)]; 
+           title = `Case #${caseId}: Unknown Neutral Sample`;
+           clues = [
+             `Mass Spectrometer indicates Mass Number A = ${el.z + el.stableN}.`,
+             `Nucleon probe detects ${el.stableN} neutrons.`,
+             `Atom is electrically neutral.`
+           ];
+           question = `Identify the element:`;
+           correctOpt = `${el.name} (Z=${el.z})`;
+           wrongOpts = [
+               `${ELEMENTS_DB[(ELEMENTS_DB.indexOf(el)+1)%20].name} (Z=${el.z+1})`,
+               `${ELEMENTS_DB[(ELEMENTS_DB.indexOf(el)+2)%20].name} (Z=${el.z+2})`,
+               `${ELEMENTS_DB[(ELEMENTS_DB.indexOf(el)+3)%20].name} (Z=${el.z+3})`
+           ];
+           explanation = `Z = A - N = ${el.z+el.stableN} - ${el.stableN} = ${el.z} (${el.name}).`;
+        } else {
+           const el = ELEMENTS_DB[Math.floor(Math.random() * 10) + 2]; 
+           title = `Case #${caseId}: Bohr Shell Architecture`;
+           clues = [
+             `Valence probe indicates the outermost shell is the ${el.shells.length === 2 ? 'L' : 'M'} shell.`,
+             `It contains exactly ${el.shells[el.shells.length-1]} valence electron(s).`,
+             `Total electron count matches the proton count exactly.`
+           ];
+           question = `Which neutral atom matches this shell distribution?`;
+           correctOpt = `${el.name} (${el.shells.join(', ')})`;
+           wrongOpts = [
+               `${ELEMENTS_DB[(ELEMENTS_DB.indexOf(el)+1)%20].name}`,
+               `${ELEMENTS_DB[(ELEMENTS_DB.indexOf(el)+2)%20].name}`,
+               `${ELEMENTS_DB[(ELEMENTS_DB.indexOf(el)+3)%20].name}`
+           ];
+           explanation = `With configuration ${el.shells.join(', ')}, total e⁻ = Z = ${el.z} (${el.name}).`;
+        }
+      } else if (diff === 'medium') {
+        const type = Math.floor(Math.random() * 2);
+        if (type === 0) {
+           const ions = [
+             { sym: 'Mg²⁺', name: 'Magnesium Ion', z: 12, e: 10 },
+             { sym: 'O²⁻', name: 'Oxide Ion', z: 8, e: 10 },
+             { sym: 'F⁻', name: 'Fluoride Ion', z: 9, e: 10 },
+             { sym: 'Al³⁺', name: 'Aluminium Ion', z: 13, e: 10 },
+             { sym: 'K⁺', name: 'Potassium Ion', z: 19, e: 18 },
+             { sym: 'Ca²⁺', name: 'Calcium Ion', z: 20, e: 18 },
+             { sym: 'S²⁻', name: 'Sulfide Ion', z: 16, e: 18 }
+           ];
+           const ion = ions[Math.floor(Math.random() * ions.length)];
+           title = `Case #${caseId}: Isoelectronic Species Analysis`;
+           clues = [
+             `Species carries a net charge of ${ion.z > ion.e ? '+'+(ion.z-ion.e) : (ion.z-ion.e)}.`,
+             `Contains exactly ${ion.e} orbiting electrons.`,
+             `Isoelectronic with ${ion.e === 10 ? 'Neon (Ne)' : 'Argon (Ar)'}.`
+           ];
+           question = `Deduce the chemical identity of the ion:`;
+           correctOpt = `${ion.sym} (Z=${ion.z})`;
+           wrongOpts = [
+               `${ions[(ions.indexOf(ion)+1)%ions.length].sym}`,
+               `${ions[(ions.indexOf(ion)+2)%ions.length].sym}`,
+               `${ions[(ions.indexOf(ion)+3)%ions.length].sym}`
+           ];
+           explanation = `Net charge ${ion.z > ion.e ? '+'+(ion.z-ion.e) : (ion.z-ion.e)} and ${ion.e} electrons means Z = ${ion.z} (${ion.sym}).`;
+        } else {
+           const series = [
+             { n1: 1, name: 'Lyman', region: 'Ultraviolet' },
+             { n1: 2, name: 'Balmer', region: 'Visible' },
+             { n1: 3, name: 'Paschen', region: 'Infrared' }
+           ];
+           const s = series[Math.floor(Math.random() * series.length)];
+           const n2 = s.n1 + Math.floor(Math.random() * 3) + 1;
+           title = `Case #${caseId}: Hydrogen Emission Spectrum`;
+           clues = [
+             `An excited Hydrogen electron undergoes spontaneous emission.`,
+             `It transitions from shell n₂ = ${n2} down to shell n₁ = ${s.n1}.`,
+             `Photon emitted matches the Rydberg equation for this drop.`
+           ];
+           question = `Which spectral series and EM region does this photon belong to?`;
+           correctOpt = `${s.name} Series (${s.region})`;
+           wrongOpts = [
+               `${series[(series.indexOf(s)+1)%series.length].name} Series`,
+               `${series[(series.indexOf(s)+2)%series.length].name} Series`,
+               `Brackett Series (Infrared)`
+           ];
+           explanation = `Transitions falling to n₁ = ${s.n1} belong to the ${s.name} series in the ${s.region} region.`;
+        }
+      } else {
+        const type = Math.floor(Math.random() * 3);
+        if (type === 0) {
+           const n = Math.floor(Math.random() * 3) + 2; 
+           const l = Math.floor(Math.random() * n);
+           const l_map = ['s', 'p', 'd', 'f'];
+           title = `Case #${caseId}: Quantum State Forensics`;
+           clues = [
+             `Schrödinger wave mechanics yields Principal Quantum Number n = ${n}.`,
+             `Azimuthal Quantum Number l = ${l}.`,
+             `Magnetic Quantum Number m_l ranges from -${l} to +${l}.`
+           ];
+           question = `Identify the subshell orbital notation and total number of nodes:`;
+           const radNodes = n - l - 1;
+           correctOpt = `${n}${l_map[l]} orbital (${n-1} total nodes)`;
+           wrongOpts = [
+               `${n}${l_map[(l+1)%n]} orbital (${n} total nodes)`,
+               `${n+1}${l_map[l]} orbital (${n} total nodes)`,
+               `${n}${l_map[(l+2)%4]} orbital (${n-2 > 0 ? n-2 : 0} total nodes)`
+           ];
+           explanation = `n=${n}, l=${l} corresponds to ${n}${l_map[l]}. Total nodes = n - 1 = ${n-1}. Radial nodes = n-l-1 = ${radNodes}.`;
+        } else if (type === 1) {
+           const elements = [
+             { name: 'Chromium', sym: 'Cr', z: 24, conf: '[Ar] 3d⁵ 4s¹', reason: 'Half-filled d-orbital stability' },
+             { name: 'Copper', sym: 'Cu', z: 29, conf: '[Ar] 3d¹⁰ 4s¹', reason: 'Fully-filled d-orbital stability' },
+             { name: 'Iron', sym: 'Fe', z: 26, conf: '[Ar] 3d⁶ 4s²', reason: 'Standard Aufbau principle' },
+             { name: 'Zinc', sym: 'Zn', z: 30, conf: '[Ar] 3d¹⁰ 4s²', reason: 'Standard Aufbau principle' }
+           ];
+           const el = elements[Math.floor(Math.random() * elements.length)];
+           title = `Case #${caseId}: Anomalous Electron Configuration`;
+           clues = [
+             `Atomic Number Z = ${el.z} (${el.name}).`,
+             `Located in the 3d transition metal block.`,
+             `Follows Hund's rule of maximum multiplicity.`
+           ];
+           question = `Select the correct ground-state electronic configuration:`;
+           correctOpt = `${el.conf} (${el.reason})`;
+           wrongOpts = [
+               `[Ar] 3d${el.z-18} 4s⁰ (Incorrect)`,
+               `[Ar] 3d${el.z-20 > 0 ? el.z-20 : 0} 4s² (Incorrect)`,
+               `[Ar] 4s² 3d${el.z-20 > 0 ? el.z-19 : 0} 4p¹ (Incorrect)`
+           ];
+           explanation = `${el.name} (Z=${el.z}) configuration is ${el.conf} due to ${el.reason.toLowerCase()}.`;
+        } else {
+           title = `Case #${caseId}: Quantum Mechanical Principles`;
+           clues = [
+             `An electron is localized in a microscopic 1D box.`,
+             `Its position is measured with very high precision (Δx is extremely small).`,
+             `According to Δx · Δp ≥ h / 4π...`
+           ];
+           question = `What is the consequence of this precise position measurement?`;
+           correctOpt = `Momentum uncertainty (Δp) becomes extremely large.`;
+           wrongOpts = [
+             `Momentum uncertainty (Δp) becomes zero.`,
+             `The electron collapses into the nucleus.`,
+             `The wavelength (λ) becomes perfectly defined.`
+           ];
+           explanation = `Heisenberg's Uncertainty Principle states position and momentum cannot be simultaneously measured precisely. Small Δx means large Δp.`;
+        }
+      }
+
+      const options = [correctOpt, ...wrongOpts.slice(0,3)];
+      const shuffledOptions = shuffleArray([...options]);
+      const correctIndex = shuffledOptions.indexOf(correctOpt);
+
+      return {
+        title, clues, question, options: shuffledOptions, correctIndex, explanation
+      };
+    }
+
+
+    function setMysteryDifficulty(diff) {
+      mysteryDiff = diff;
+      document.querySelectorAll('.mdiff-btn').forEach((b) => {
+        const active = b.getAttribute('data-mdiff') === diff;
+        b.className = `mdiff-btn px-3 py-1.5 rounded-lg border text-xs font-bold uppercase cursor-pointer ${
+          active ? 'bg-[#A3E635] text-slate-950 border-[#A3E635]' : 'bg-[#111827] text-white border-white/10'
+        }`;
+      });
+      nextMysteryCase();
+    }
+
+    function nextMysteryCase() {
+      mysterySeed++;
+      currentMystery = generateMysteryCase(mysteryDiff, mysterySeed);
+      mysteryRevealed = [true, false, false];
+      mysterySelected = null;
+      renderMysteryUI();
+    }
+
+    function revealMysteryClue(idx) {
+      mysteryRevealed[idx] = true;
+      renderMysteryUI();
+    }
+
+    function selectMysteryOption(idx) {
+      if (mysterySelected !== null) return;
+      mysterySelected = idx;
+      if (idx === currentMystery.correctIndex) {
+        const bonus = mysteryRevealed.filter((c) => !c).length * 25;
+        mysteryScore += 100 + bonus;
+      }
+      renderMysteryUI();
+    }
+
+    function renderMysteryUI() {
+      document.getElementById('mysteryCaseTitle').textContent = currentMystery.title;
+      document.getElementById('mysteryScoreLabel').textContent = `Detective Score: ${mysteryScore} pts`;
+      document.getElementById('mysteryQuestionText').textContent = currentMystery.question;
+
+      const labels = ['Instrument 1: Mass / Nucleon Probe', 'Instrument 2: Shell / Subshell Probe', 'Instrument 3: Spectral Analyzer'];
+      document.getElementById('mysteryCluesGrid').innerHTML = labels.map((lbl, i) => `
+        <div class="p-3.5 rounded-xl border border-white/[0.08] bg-[#111827] flex flex-col justify-between">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-sky-400 mb-2">${lbl}</div>
+          ${mysteryRevealed[i]
+            ? `<p class="text-xs leading-relaxed text-white">${currentMystery.clues[i]}</p>`
+            : `<button onclick="revealMysteryClue(${i})" class="py-2 px-3 rounded-lg border border-[#A3E635] text-[#A3E635] bg-[#0B101B] text-xs font-bold cursor-pointer">🔍 Run Lab Probe</button>`
+          }
+        </div>
+      `).join('');
+
+      document.getElementById('mysteryOptionsGrid').innerHTML = currentMystery.options.map((opt, idx) => {
+        let cls = 'border-white/10 bg-[#111827] text-white';
+        if (mysterySelected !== null) {
+          if (idx === currentMystery.correctIndex) cls = 'border-emerald-400 bg-emerald-400/15 text-emerald-300';
+          else if (idx === mysterySelected) cls = 'border-rose-400 bg-rose-400/15 text-rose-300';
+        }
+        return `
+          <button onclick="selectMysteryOption(${idx})" class="p-3.5 rounded-xl border text-left text-xs font-bold flex items-center justify-between transition cursor-pointer ${cls}">
+            <span>${opt}</span>
+          </button>
+        `;
+      }).join('');
+
+      const expBox = document.getElementById('mysteryExplanationBox');
+      if (mysterySelected !== null) {
+        expBox.classList.remove('hidden');
+        expBox.innerHTML = `
+          <div class="text-xs leading-relaxed text-white"><strong class="text-[#A3E635]">Forensic Explanation: </strong>${currentMystery.explanation}</div>
+          <button onclick="nextMysteryCase()" class="px-4 py-2 rounded-lg font-extrabold text-xs bg-[#A3E635] text-slate-950 cursor-pointer flex-shrink-0">Next Case →</button>
+        `;
+      } else {
+        expBox.classList.add('hidden');
+      }
+    }
+
+    /* ============================================================================
+       8. MASTER ANIMATION LOOP (HERO, SIM LAB, GAMES, COMPARE, TIMELINE)
+       ============================================================================ */
+    function fitCanvas(canvas) {
+      if (!canvas) return null;
+      const dpr = window.devicePixelRatio || 1;
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      if (w === 0 || h === 0) return null;
+      if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+      }
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+      return { ctx, w, h };
+    }
+
+    function renderMasterLoop() {
+      frameCount++;
+      globalTime += 0.022;
+
+      if (activeView === 'overview') {
+        const res = fitCanvas(document.getElementById('heroAtomCanvas'));
+        if (res) {
+          const { ctx, w, h } = res;
+          const cx = w * 0.52, cy = h * 0.52;
+          const ambient = ctx.createRadialGradient(cx, cy, 10, cx, cy, 175);
+          ambient.addColorStop(0, 'rgba(251, 146, 60, 0.24)');
+          ambient.addColorStop(0.4, 'rgba(234, 88, 12, 0.08)');
+          ambient.addColorStop(1, 'rgba(7, 10, 16, 0)');
+          ctx.fillStyle = ambient; ctx.beginPath(); ctx.arc(cx, cy, 175, 0, Math.PI * 2); ctx.fill();
+
+          const orbits = [
+            { rx: 168, ry: 66, rot: -0.62, stroke: 'rgba(163, 230, 53, 0.36)', eColor: '#A3E635', speed: 1.15, phase: 2.2 },
+            { rx: 168, ry: 66, rot: 0.92, stroke: 'rgba(56, 189, 248, 0.38)', eColor: '#38BDF8', speed: 0.95, phase: 4.5 },
+            { rx: 168, ry: 64, rot: -0.18, stroke: 'rgba(167, 139, 250, 0.34)', eColor: '#A78BFA', speed: 1.05, phase: 0.1 }
+          ];
+          orbits.forEach((orb) => {
+            ctx.save(); ctx.translate(cx, cy); ctx.rotate(orb.rot);
+            ctx.beginPath(); ctx.ellipse(0, 0, orb.rx, orb.ry, 0, 0, Math.PI * 2);
+            ctx.strokeStyle = orb.stroke; ctx.lineWidth = 1.35; ctx.stroke();
+            const ang = globalTime * orb.speed + orb.phase;
+            const ex = Math.cos(ang) * orb.rx, ey = Math.sin(ang) * orb.ry;
+            ctx.beginPath(); ctx.arc(ex, ey, 4, 0, Math.PI * 2);
+            ctx.fillStyle = orb.eColor; ctx.shadowColor = orb.eColor; ctx.shadowBlur = 10; ctx.fill();
+            ctx.restore();
+          });
+
+          const nucGrad = ctx.createRadialGradient(cx - 10, cy - 10, 4, cx, cy, 36);
+          nucGrad.addColorStop(0, '#FDE68A'); nucGrad.addColorStop(0.28, '#FB923C');
+          nucGrad.addColorStop(0.7, '#EA580C'); nucGrad.addColorStop(1, '#7C2D12');
+          ctx.beginPath(); ctx.arc(cx, cy, 36, 0, Math.PI * 2);
+          ctx.fillStyle = nucGrad; ctx.fill();
+        }
+      } else if (activeView === 'sim') {
+        const res = fitCanvas(document.getElementById('simCanvas'));
+        if (res) {
+          const { ctx, w, h } = res;
+          const cx = w / 2, cy = h / 2;
+
+          // Protractor Ring
+          if (showProtractorHUD) {
+            const gR = Math.min(w, h) * 0.36;
+            ctx.save();
+            ctx.beginPath(); ctx.arc(cx, cy, gR, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.14)'; ctx.setLineDash([3, 6]); ctx.stroke(); ctx.setLineDash([]);
+            [0, 30, 60, 90, 120, 150, 180].forEach((deg) => {
+              const rad = (deg * Math.PI) / 180;
+              ctx.fillStyle = 'rgba(148, 163, 184, 0.42)';
+              ctx.font = '600 9px "JetBrains Mono", monospace';
+              ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+              ctx.fillText(`${deg}°`, cx + Math.cos(rad) * (gR + 14), cy - Math.sin(rad) * (gR + 14));
+            });
+            ctx.restore();
+          }
+
+          if (autoRotate3D && !simDragging) simRotY += 0.008;
+          if (thomsonAmp > 0) thomsonAmp = Math.max(0, thomsonAmp - 0.006);
+          if (rutherfordCollapsing) {
+            rutherfordSpiral -= 0.008;
+            if (rutherfordSpiral <= 0.12) { rutherfordSpiral = 1.0; rutherfordCollapsing = false; }
+          }
+
+          bohrState.displayN += (bohrState.n - bohrState.displayN) * 0.18;
+          bohrState.angle += 0.045 / Math.pow(Math.max(1, bohrState.displayN), 0.65);
+
+          if (currentModel === 'bohr' && bohrState.n > 1) {
+            bohrState.relaxTimer--;
+            if (bohrState.relaxTimer <= 0) {
+              const oldN = bohrState.n;
+              const newN = oldN > 2 && Math.random() < 0.45 ? 2 : 1;
+              bohrState.n = newN;
+              bohrState.relaxTimer = newN > 1 ? 80 : 0;
+              const curR = BOHR_RADII[oldN] * stageZoom;
+              bohrState.emittedPhotons.push({
+                x: cx + Math.cos(bohrState.angle) * curR,
+                y: cy + Math.sin(bohrState.angle) * curR,
+                angle: Math.random() * Math.PI * 2,
+                speed: 4.2, dist: 0, color: newN === 1 ? '#A855F7' : '#06B6D4', phase: 0
+              });
+              syncSimulationUI();
+            }
+          }
+          
+          // Schrödinger State Transitions & Emission
+          if (currentModel === 'schrodinger') {
+            if (schrodingerState.transitionProgress < 1.0) {
+              schrodingerState.transitionProgress += 0.02; // Transition speed
+              if (schrodingerState.transitionProgress >= 1.0) {
+                schrodingerState.transitionProgress = 1.0;
+                schrodingerState.orbIdx = schrodingerState.targetOrbIdx;
+              }
+            } else if (schrodingerState.orbIdx > 0) {
+              schrodingerState.relaxTimer--;
+              if (schrodingerState.relaxTimer <= 0) {
+                schrodingerState.targetOrbIdx = 0; // Spontaneous emission to 1s ground state
+                schrodingerState.transitionProgress = 0.0;
+                schrodingerState.relaxTimer = 0;
+
+                // Emit Photon upon relaxation
+                schrodingerState.emittedPhotons.push({
+                  x: cx, y: cy,
+                  angle: Math.random() * Math.PI * 2,
+                  speed: 4.2, dist: 0, color: '#06B6D4', phase: 0
+                });
+                const orb = SCHRODINGER_ORBITALS[0];
+                pushLog(`1926 Schrödinger: Spontaneous emission. Relaxing to ${orb.label}.`);
+                syncSimulationUI();
+              }
+            }
+          }
+
+          drawAtomVisual(ctx, currentModel, w, h, globalTime, {
+            zVal: targetZ, bohrN: bohrState.displayN, bohrAngle: bohrState.angle,
+            scale: stageZoom, rotX: simRotX, rotY: simRotY,
+            thomsonExcite: thomsonAmp, ruthSpiral: rutherfordSpiral, 
+            orbIdx: schrodingerState.orbIdx,
+            tgtOrbIdx: schrodingerState.targetOrbIdx,
+            sProg: schrodingerState.transitionProgress
+          });
+
+          // Emitted photons
+          // Render Emitted Photons for both Bohr and Schrödinger
+          const activePhotons = currentModel === 'bohr' ? bohrState.emittedPhotons : (currentModel === 'schrodinger' ? schrodingerState.emittedPhotons : []);
+          for (let i = activePhotons.length - 1; i >= 0; i--) {
+            const ep = activePhotons[i];
+            ep.x += Math.cos(ep.angle) * ep.speed;
+            ep.y += Math.sin(ep.angle) * ep.speed;
+            ep.dist += ep.speed; ep.phase += 0.4;
+            drawPhotonWavePacket(ctx, ep.x, ep.y, ep.angle, ep.color, ep.phase, true);
+            if (ep.dist > Math.max(w, h)) activePhotons.splice(i, 1);
+          }
+
+          const interval = beamDensity === 1 ? 16 : beamDensity === 2 ? 9 : 4;
+          if (beamActive && frameCount % interval === 0) spawnSingleParticle(h);
+
+          // Particle Physics
+          const subSteps = 4;
+          for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.phase += 0.35;
+            for (let s = 0; s < subSteps; s++) {
+              const dx = p.x - cx, dy = p.y - cy, dist = Math.hypot(dx, dy);
+              if (currentModel === 'dalton') {
+                const hitR = 82 * stageZoom;
+                if (!p.bounced && dist <= hitR) {
+                  const nx = dx / (dist || 1), ny = dy / (dist || 1);
+                  const dot = p.vx * nx + p.vy * ny;
+                  if (dot < 0) {
+                    p.vx -= 2 * dot * nx; p.vy -= 2 * dot * ny;
+                    p.x = cx + nx * (hitR + 2); p.y = cy + ny * (hitR + 2);
+                    p.bounced = true;
+                  }
+                }
+              } else if (currentModel === 'thomson') {
+                const hitR = 88 * stageZoom;
+                if (dist < hitR && p.charge !== 0) {
+                  const sign = p.charge > 0 ? 1 : -1;
+                  p.vy += (dy / hitR) * 0.018 * sign;
+                  p.vx += (dx / hitR) * 0.006 * sign;
+                }
+              } else {
+                if (!p.absorbed && dist < 85 && Math.abs(dx) < 12) {
+                  // Bohr Absorption
+                  if (currentModel === 'bohr' && bohrState.n < 6) {
+                    if (p.type === 'photon' || (beamEnergy >= 4.0 && Math.random() < 0.32)) {
+                      bohrState.n = Math.min(6, Math.max(bohrState.n + 1, p.targetN || 3));
+                      bohrState.relaxTimer = 95;
+                      syncSimulationUI();
+                      if (p.type === 'photon') { p.absorbed = true; break; }
+                    }
+                  }
+                  // Schrödinger Absorption
+                  else if (currentModel === 'schrodinger' && schrodingerState.orbIdx === 0 && schrodingerState.transitionProgress >= 1.0) {
+                    if (p.type === 'photon' || (beamEnergy >= 4.0 && Math.random() < 0.32)) {
+                      schrodingerState.targetOrbIdx = Math.min(SCHRODINGER_ORBITALS.length - 1, schrodingerState.orbIdx + 1 + Math.floor(Math.random() * 2));
+                      schrodingerState.transitionProgress = 0.0;
+                      schrodingerState.relaxTimer = 150;
+                      const orb = SCHRODINGER_ORBITALS[schrodingerState.targetOrbIdx];
+                      pushLog(`1926 Schrödinger: Photon absorbed. Exciting to ${orb.label}.`);
+                      syncSimulationUI();
+                      if (p.type === 'photon') { p.absorbed = true; break; }
+                    }
+                  }
+                }
+                if (p.charge !== 0) {
+                  if (p.regime === 'back' && p.charge > 0 && dist <= 16 && !p.bounced) {
+                    p.vx = -Math.abs(p.vx) * 0.95;
+                    p.vy += (dy === 0 ? 0.3 : Math.sign(dy) * 0.45);
+                    p.bounced = true;
+                  } else if (p.regime === 'straight' && dist > 48) {
+                    p.vy += (dy / dist) * ((p.charge * 0.12) / (dist * subSteps));
+                  } else if (dist < 165) {
+                    const effDistSq = Math.max(42, dist * dist);
+                    const effDist = Math.sqrt(effDistSq);
+                    const zEff = currentModel === 'rutherford' ? targetZ : 38;
+                    const sign = p.charge > 0 ? 1 : -0.45;
+                    const accel = ((zEff * Math.abs(p.charge) * 7.8 * sign) / (p.mass * subSteps)) / effDistSq;
+                    p.vx += (dx / effDist) * accel;
+                    p.vy += (dy / effDist) * accel;
+                  }
+                }
+              }
+              p.x += p.vx / subSteps;
+              p.y += p.vy / subSteps;
+            }
+
+            if (!p.counted && !p.absorbed && (p.x > cx + 55 || (p.vx < 0 && p.x < cx - 25))) {
+              p.counted = true;
+              const deg = Math.abs(Math.atan2(p.vy, p.vx) * (180 / Math.PI));
+              p.scatterDeg = deg;
+              scatterStats.total++;
+              if (deg < 10) scatterStats.straight++;
+              else if (deg < 135) scatterStats.wide++;
+              else scatterStats.back++;
+              scatterStats.lastAngle = deg;
+              updateScatterHUD();
+            }
+
+            p.history.push({ x: p.x, y: p.y });
+            if (p.history.length > 65) p.history.shift();
+
+            if (!p.absorbed && showTraces && p.history.length > 1) {
+              ctx.save(); ctx.beginPath(); ctx.moveTo(p.history[0].x, p.history[0].y);
+              for (let k = 1; k < p.history.length; k++) ctx.lineTo(p.history[k].x, p.history[k].y);
+              ctx.strokeStyle = p.color; ctx.globalAlpha = 0.52; ctx.lineWidth = 1.8; ctx.stroke(); ctx.restore();
+            }
+
+            if (!p.absorbed) {
+              const ang = Math.atan2(p.vy, p.vx);
+              if (p.type === 'photon') {
+                drawPhotonWavePacket(ctx, p.x, p.y, ang, p.color, p.phase, showTraces);
+              } else {
+                ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(ang);
+                ctx.beginPath(); ctx.arc(0, 0, 4.2, 0, Math.PI * 2);
+                ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.shadowBlur = 8; ctx.fill();
+                ctx.restore();
+              }
+            }
+
+            if (p.absorbed || p.x < -30 || p.x > w + 30 || p.y < -30 || p.y > h + 30) {
+              particles.splice(i, 1);
+            }
+          }
+        }
+      } else if (activeView === 'games') {
+        const res = fitCanvas(document.getElementById('buildAtomCanvas'));
+        if (res) {
+          const { ctx, w, h } = res;
+          const cx = w / 2, cy = h / 2;
+          let rem = buildE;
+          const shells = [2, 8, 8, 18].map((c) => { const t = Math.min(rem, c); rem -= t; return t; });
+          ctx.save(); ctx.translate(cx, cy);
+          [48, 84, 120, 154].forEach((r, sIdx) => {
+            const count = shells[sIdx];
+            ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
+            ctx.setLineDash([4, 5]);
+            ctx.strokeStyle = count > 0 ? 'rgba(56, 189, 248, 0.45)' : 'rgba(148, 163, 184, 0.15)';
+            ctx.stroke(); ctx.setLineDash([]);
+            for (let i = 0; i < count; i++) {
+              const ang = globalTime * (1.5 - sIdx * 0.25) + (i * Math.PI * 2) / count;
+              ctx.beginPath(); ctx.arc(Math.cos(ang) * r, Math.sin(ang) * r, 5.5, 0, Math.PI * 2);
+              ctx.fillStyle = '#38BDF8'; ctx.fill();
+            }
+          });
+          const totalNuc = buildP + buildN;
+          for (let i = 0; i < totalNuc; i++) {
+            const ang = i * 2.39996, dist = Math.sqrt(i) * 5.8;
+            ctx.beginPath(); ctx.arc(Math.cos(ang) * dist, Math.sin(ang) * dist, 6.2, 0, Math.PI * 2);
+            ctx.fillStyle = i < buildP ? '#EF4444' : '#94A3B8'; ctx.fill();
+          }
+          ctx.restore();
+        }
+      } else if (activeView === 'compare') {
+        if (!compRotA.drag) compRotA.y += 0.008;
+        if (!compRotB.drag) compRotB.y += 0.008;
+        const resA = fitCanvas(document.getElementById('compCanvasA'));
+        if (resA) drawAtomVisual(resA.ctx, document.getElementById('compSelectA').value, resA.w, resA.h, globalTime, { bohrN: 2, bohrAngle: globalTime * 1.4, scale: 0.85, rotX: compRotA.x, rotY: compRotA.y });
+        const resB = fitCanvas(document.getElementById('compCanvasB'));
+        if (resB) drawAtomVisual(resB.ctx, document.getElementById('compSelectB').value, resB.w, resB.h, globalTime, { bohrN: 2, bohrAngle: globalTime * 1.4, scale: 0.85, rotX: compRotB.x, rotY: compRotB.y });
+      } else if (activeView === 'timeline') {
+        const resT = fitCanvas(document.getElementById('timelineMorphCanvas'));
+        if (resT) {
+          const modelsArr = Object.values(ATOMIC_MODELS);
+          const idx = Math.min(modelsArr.length - 1, Math.floor(timelineScrollProgress * modelsArr.length));
+          drawAtomVisual(resT.ctx, modelsArr[idx].id, resT.w, resT.h, globalTime, { bohrN: 2, bohrAngle: globalTime * 1.5, scale: 0.92, rotX: 0.35, rotY: globalTime * 0.4 });
+        }
+      }
+
+      requestAnimationFrame(renderMasterLoop);
+    }
+
+    /* ============================================================================
+       9. POINTER DRAG LISTENERS & INITIALIZATION
+       ============================================================================ */
+    window.addEventListener('DOMContentLoaded', () => {
+      syncSimulationUI();
+      updateComparisonView();
+      initTimelineCards();
+      nextBuildChallenge();
+      nextMysteryCase();
+
+      const simWrap = document.getElementById('simStageWrap');
+      simWrap.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('button') || e.target.tagName === 'INPUT') return;
+        simDragging = true; simLastX = e.clientX; simLastY = e.clientY;
+        simWrap.setPointerCapture(e.pointerId);
+      });
+      
+      window.addEventListener('pointermove', (e) => {
+        if (simDragging) {
+          simRotY += (e.clientX - simLastX) * 0.01;
+          simRotX = Math.max(-1.45, Math.min(1.45, simRotX + (e.clientY - simLastY) * 0.01));
+          simLastX = e.clientX; simLastY = e.clientY;
+        }
+        if (compRotA.drag) {
+          compRotA.y += (e.clientX - compRotA.lx) * 0.012;
+          compRotA.x = Math.max(-1.4, Math.min(1.4, compRotA.x + (e.clientY - compRotA.ly) * 0.012));
+          compRotA.lx = e.clientX; compRotA.ly = e.clientY;
+        }
+        if (compRotB.drag) {
+          compRotB.y += (e.clientX - compRotB.lx) * 0.012;
+          compRotB.x = Math.max(-1.4, Math.min(1.4, compRotB.x + (e.clientY - compRotB.ly) * 0.012));
+          compRotB.lx = e.clientX; compRotB.ly = e.clientY;
+        }
+      });
+      
+      const endDrag = () => { simDragging = false; compRotA.drag = false; compRotB.drag = false; };
+      window.addEventListener('pointerup', endDrag);
+      window.addEventListener('pointercancel', endDrag);
+
+      const wrapA = document.getElementById('compWrapA');
+      wrapA.addEventListener('pointerdown', (e) => { 
+        if (e.target.closest('button') || e.target.tagName === 'INPUT') return;
+        compRotA.drag = true; compRotA.lx = e.clientX; compRotA.ly = e.clientY; 
+        wrapA.setPointerCapture(e.pointerId);
+      });
+      
+      const wrapB = document.getElementById('compWrapB');
+      wrapB.addEventListener('pointerdown', (e) => { 
+        if (e.target.closest('button') || e.target.tagName === 'INPUT') return;
+        compRotB.drag = true; compRotB.lx = e.clientX; compRotB.ly = e.clientY; 
+        wrapB.setPointerCapture(e.pointerId);
+      });
+
+      requestAnimationFrame(renderMasterLoop);
+    });
+  </script>
+</body>
+</html>
